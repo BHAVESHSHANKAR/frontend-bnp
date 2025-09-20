@@ -23,7 +23,6 @@ const FeedbackComponent = () => {
     })
     const [submitting, setSubmitting] = useState(false)
     const [pendingDecisions, setPendingDecisions] = useState([])
-
     useEffect(() => {
         fetchRecentDecisions()
         fetchPendingDecisions()
@@ -77,6 +76,11 @@ const FeedbackComponent = () => {
         
         if (!feedbackForm.customerId || !feedbackForm.feedback) {
             toast.error('Please fill in customer ID and feedback')
+            return
+        }
+
+        if (submitting) {
+            toast.warning('Submission already in progress...')
             return
         }
 

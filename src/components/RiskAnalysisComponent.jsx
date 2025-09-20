@@ -3,6 +3,29 @@ import { Shield, TrendingUp, AlertTriangle, CheckCircle, Clock, Eye, FileText, U
 import { toast } from 'react-toastify'
 import axios from 'axios'
 
+// Track if rate limit toast is already shown to prevent multiple toasts
+let rateLimitToastShown = false;
+
+// Add response interceptor to handle rate limiting
+axios.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 429 && !rateLimitToastShown) {
+            rateLimitToastShown = true;
+            const retryAfter = error.response.data?.retryAfter || 45
+            toast.error(`Please wait ${retryAfter} seconds before trying again.`, {
+                autoClose: 8000,
+                toastId: 'rate-limit' // Prevent duplicate toasts
+            })
+            // Reset flag after the wait time
+            setTimeout(() => {
+                rateLimitToastShown = false;
+            }, retryAfter * 1000)
+        }
+        return Promise.reject(error)
+    }
+)
+
 const RiskAnalysisComponent = ({ uploadData }) => {
     const [loading, setLoading] = useState(false)
     const [loadingFeedback, setLoadingFeedback] = useState(null) // Track which customer is loading
@@ -38,15 +61,21 @@ const RiskAnalysisComponent = ({ uploadData }) => {
         }
     }, [uploadData])
 
-    // Refresh data every 30 seconds to get latest risk statistics
+    // Refresh data every 30 seconds to avoid overwhelming server
     useEffect(() => {
         const interval = setInterval(() => {
-            fetchRecentUploads()
-            fetchPendingDecisions()
+            // Only refresh if not currently fetching to prevent overlapping requests
+            if (!fetchingUploads) {
+                console.log('🔄 Auto-refreshing risk data...')
+                fetchRecentUploads()
+                fetchPendingDecisions()
+            } else {
+                console.log('⏳ Skipping refresh - already fetching data')
+            }
         }, 30000) // 30 seconds
 
         return () => clearInterval(interval)
-    }, [])
+    }, [fetchingUploads])
 
     const fetchRecentUploads = async () => {
         // Prevent multiple simultaneous calls

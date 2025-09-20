@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Upload, Plus, X, FileText, AlertCircle, CheckCircle } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
@@ -12,6 +12,44 @@ const UploadComponent = ({ onAnalysisComplete }) => {
     })
     const [uploading, setUploading] = useState(false)
     const [dragActive, setDragActive] = useState(false)
+    const [bankName] = useState('BNP') // Bank name - can be made configurable later
+    const [customerCounter, setCustomerCounter] = useState(1)
+
+    // Generate customer ID when name and mobile are entered
+    const generateCustomerId = async () => {
+        try {
+            const token = localStorage.getItem('token')
+            const response = await axios.get('http://localhost:6969/api/files/next-customer-id', {
+                headers: { Authorization: `Bearer ${token}` },
+                params: { bankName }
+            })
+            
+            if (response.data.success) {
+                const nextId = `${bankName}${response.data.data.nextId}`
+                setUploadForm(prev => ({ ...prev, customerId: nextId }))
+                setCustomerCounter(response.data.data.nextId)
+            } else {
+                // Fallback to local counter if API fails
+                const nextId = `${bankName}${customerCounter}`
+                setUploadForm(prev => ({ ...prev, customerId: nextId }))
+            }
+        } catch (error) {
+            console.error('Error generating customer ID:', error)
+            // Fallback to local counter
+            const nextId = `${bankName}${customerCounter}`
+            setUploadForm(prev => ({ ...prev, customerId: nextId }))
+        }
+    }
+
+    // Check if name and mobile are filled to enable file selection
+    const isBasicInfoComplete = uploadForm.personName.trim() && uploadForm.mobileNumber.trim()
+
+    // Auto-generate customer ID when name and mobile are entered
+    useEffect(() => {
+        if (isBasicInfoComplete && !uploadForm.customerId) {
+            generateCustomerId()
+        }
+    }, [isBasicInfoComplete])
 
     const handleFileUpload = (e) => {
         const files = Array.from(e.target.files)
@@ -45,8 +83,13 @@ const UploadComponent = ({ onAnalysisComplete }) => {
     const handleUploadSubmit = async (e) => {
         e.preventDefault()
         
-        if (!uploadForm.customerId || !uploadForm.personName || !uploadForm.mobileNumber || uploadForm.files.length === 0) {
-            toast.error('Please fill all fields and select files')
+        if (!uploadForm.personName || !uploadForm.mobileNumber || uploadForm.files.length === 0) {
+            toast.error('Please fill person name, mobile number and select files')
+            return
+        }
+
+        if (!uploadForm.customerId) {
+            toast.error('Customer ID is being generated. Please wait a moment.')
             return
         }
 
@@ -76,7 +119,6 @@ const UploadComponent = ({ onAnalysisComplete }) => {
 
             if (response.data.success) {
                 toast.success('Files uploaded and processed successfully!')
-                setUploadForm({ customerId: '', personName: '', mobileNumber: '', files: [] })
                 
                 // Call the callback to switch to risk analysis with the data
                 if (onAnalysisComplete) {
@@ -86,6 +128,10 @@ const UploadComponent = ({ onAnalysisComplete }) => {
                         uploadResults: response.data.data
                     })
                 }
+                
+                // Reset form and increment counter for next customer
+                setUploadForm({ customerId: '', personName: '', mobileNumber: '', files: [] })
+                setCustomerCounter(prev => prev + 1)
             } else {
                 toast.error(response.data.message || 'Upload failed')
             }
@@ -120,16 +166,18 @@ const UploadComponent = ({ onAnalysisComplete }) => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Customer ID *
+                                Customer ID * (Auto-generated)
                             </label>
                             <input
                                 type="text"
                                 value={uploadForm.customerId}
-                                onChange={(e) => setUploadForm(prev => ({ ...prev, customerId: e.target.value }))}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                placeholder="Enter customer ID"
-                                required
+                                readOnly
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 cursor-not-allowed"
+                                placeholder={isBasicInfoComplete ? "Generating..." : "Fill name and mobile first"}
                             />
+                            <p className="text-xs text-gray-500 mt-1">
+                                Format: {bankName}1, {bankName}2, etc.
+                            </p>
                         </div>
 
                         <div>
@@ -166,16 +214,29 @@ const UploadComponent = ({ onAnalysisComplete }) => {
                 <div className="bg-white rounded-lg shadow p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Document Upload</h3>
                     
+                    {!isBasicInfoComplete && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                            <div className="flex items-center space-x-2">
+                                <AlertCircle size={20} className="text-yellow-600" />
+                                <p className="text-sm text-yellow-800 font-medium">
+                                    Please fill in Person Name and Mobile Number first to enable file selection
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    
                     {/* Drag and Drop Area */}
                     <div
                         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors duration-200 ${
-                            dragActive 
-                                ? 'border-green-500 bg-green-50' 
-                                : 'border-gray-300 hover:border-green-400'
+                            !isBasicInfoComplete 
+                                ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-50'
+                                : dragActive 
+                                    ? 'border-green-500 bg-green-50' 
+                                    : 'border-gray-300 hover:border-green-400'
                         }`}
-                        onDrop={handleDrop}
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
+                        onDrop={isBasicInfoComplete ? handleDrop : undefined}
+                        onDragOver={isBasicInfoComplete ? handleDragOver : undefined}
+                        onDragLeave={isBasicInfoComplete ? handleDragLeave : undefined}
                     >
                         <Upload size={48} className="mx-auto text-gray-400 mb-4" />
                         <p className="text-lg font-medium text-gray-900 mb-2">
@@ -191,13 +252,18 @@ const UploadComponent = ({ onAnalysisComplete }) => {
                             className="hidden"
                             id="file-upload"
                             accept="*/*"
+                            disabled={!isBasicInfoComplete}
                         />
                         <label
-                            htmlFor="file-upload"
-                            className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer transition-colors duration-200"
+                            htmlFor={isBasicInfoComplete ? "file-upload" : undefined}
+                            className={`inline-flex items-center px-4 py-2 rounded-lg transition-colors duration-200 ${
+                                isBasicInfoComplete 
+                                    ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
+                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            }`}
                         >
                             <Plus size={20} className="mr-2" />
-                            Select Files
+                            {isBasicInfoComplete ? 'Select Files' : 'Fill Info First'}
                         </label>
                     </div>
 
