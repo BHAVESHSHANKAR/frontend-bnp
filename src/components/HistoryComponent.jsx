@@ -25,7 +25,7 @@ const HistoryComponent = () => {
     const fetchCompletedDecisions = async () => {
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get('http://localhost:6969/api/files/completed-decisions', {
+            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/completed-decisions`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
@@ -54,7 +54,7 @@ const HistoryComponent = () => {
                 // Endpoint might not exist, try fallback
                 console.log('Trying fallback endpoint...')
                 try {
-                    const fallbackResponse = await axios.get('http://localhost:6969/api/files/my-decisions', {
+                    const fallbackResponse = await axios.get(`${import.meta.env.VITE_API}/api/files/my-decisions`, {
                         headers: { Authorization: `Bearer ${token}` }
                     })
                     
@@ -122,7 +122,7 @@ const HistoryComponent = () => {
         try {
             const token = localStorage.getItem('token')
             const response = await axios.get(
-                `http://localhost:6969/api/files/download-report/${decision.customer_id}`,
+                `${import.meta.env.VITE_API}/api/files/download-report/${decision.customer_id}`,
                 {
                     headers: { Authorization: `Bearer ${token}` },
                     responseType: 'blob'

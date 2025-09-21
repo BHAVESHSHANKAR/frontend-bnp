@@ -65,7 +65,7 @@ const Dashboard = () => {
             const headers = { Authorization: `Bearer ${token}` }
 
             // Fetch pending decisions count for badge
-            const pendingResponse = await axios.get('http://localhost:6969/api/files/pending-decisions', { headers })
+            const pendingResponse = await axios.get(`${import.meta.env.VITE_API}/api/files/pending-decisions`, { headers })
             if (pendingResponse.data.success) {
                 setDashboardData({
                     pendingDecisions: pendingResponse.data.data.pending_decisions.length

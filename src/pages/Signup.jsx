@@ -85,7 +85,7 @@ const Signup = () => {
         setLoading(true)
 
         try {
-            const response = await axios.post('http://localhost:6969/api/admin/signup', {
+        const response = await axios.post(`${import.meta.env.VITE_API}/api/admin/signup`, {
                 username: formData.username,
                 email: formData.email,
                 password: formData.password,

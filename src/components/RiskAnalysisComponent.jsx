@@ -90,7 +90,7 @@ const RiskAnalysisComponent = ({ uploadData }) => {
             const token = localStorage.getItem('token')
             
             // Try to get recent uploads from my-uploads endpoint
-            const response = await axios.get('http://localhost:6969/api/files/my-uploads', {
+            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/my-uploads`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
@@ -113,7 +113,7 @@ const RiskAnalysisComponent = ({ uploadData }) => {
                         
                         try {
                             // Fetch ML results for this customer
-                            const mlResponse = await axios.get(`http://localhost:6969/api/files/ml-results/${customerId}`, {
+                            const mlResponse = await axios.get(`${import.meta.env.VITE_API}/api/files/ml-results/${customerId}`, {
                                 headers: { Authorization: `Bearer ${token}` }
                             })
                             
@@ -160,7 +160,7 @@ const RiskAnalysisComponent = ({ uploadData }) => {
     const fetchPendingDecisions = async () => {
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get('http://localhost:6969/api/files/pending-decisions', {
+            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/pending-decisions`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
@@ -207,7 +207,7 @@ const RiskAnalysisComponent = ({ uploadData }) => {
             // Check each customer for existing decisions
             for (const decision of decisions) {
                 try {
-                    const response = await axios.get(`http://localhost:6969/api/files/ml-results/${decision.customer_id}`, {
+                    const response = await axios.get(`${import.meta.env.VITE_API}/api/files/ml-results/${decision.customer_id}`, {
                         headers: { Authorization: `Bearer ${token}` }
                     })
                     
@@ -253,7 +253,7 @@ const RiskAnalysisComponent = ({ uploadData }) => {
         setLoadingFeedback(customerData.customer_id)
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get(`http://localhost:6969/api/files/ml-results/${customerData.customer_id}`, {
+            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/ml-results/${customerData.customer_id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
@@ -301,7 +301,7 @@ const RiskAnalysisComponent = ({ uploadData }) => {
         setLoading(true)
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get(`http://localhost:6969/api/files/ml-results/${customerId}`, {
+            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/ml-results/${customerId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
@@ -386,7 +386,7 @@ const RiskAnalysisComponent = ({ uploadData }) => {
             console.log(`📤 Request payload:`, requestData)
             
             const response = await axios.post(
-                `http://localhost:6969/api/files/decision/${customerId}`,
+                `${import.meta.env.VITE_API}/api/files/decision/${customerId}`,
                 requestData,
                 { headers: { Authorization: `Bearer ${token}` } }
             )
@@ -581,7 +581,7 @@ const RiskAnalysisComponent = ({ uploadData }) => {
         try {
             const token = localStorage.getItem('token')
             const response = await axios.get(
-                `http://localhost:6969/api/files/download-report/${item.customer_id}`,
+                `${import.meta.env.VITE_API}/api/files/download-report/${item.customer_id}`,
                 {
                     headers: { Authorization: `Bearer ${token}` },
                     responseType: 'blob'
@@ -691,7 +691,7 @@ const RiskAnalysisComponent = ({ uploadData }) => {
                             onClick={async () => {
                                 try {
                                     const token = localStorage.getItem('token')
-                                    const response = await axios.get('http://localhost:6969/api/files/debug/risk-data', {
+                                    const response = await axios.get(`${import.meta.env.VITE_API}/api/files/debug/risk-data`, {
                                         headers: { Authorization: `Bearer ${token}` }
                                     })
                                     console.log('🔍 Debug Risk Data:', response.data)

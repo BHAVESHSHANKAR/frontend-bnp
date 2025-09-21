@@ -17,7 +17,7 @@ const UploadComponent = ({ onAnalysisComplete }) => {
     const generateCustomerId = async () => {
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get('http://localhost:6969/api/files/next-customer-id', {
+            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/next-customer-id`, {
                 headers: { Authorization: `Bearer ${token}` },
                 params: { bankName }
             })
@@ -101,7 +101,7 @@ const UploadComponent = ({ onAnalysisComplete }) => {
             })
 
             const response = await axios.post(
-                `http://localhost:6969/api/files/upload/${uploadForm.customerId}`,
+                `${import.meta.env.VITE_API}/api/files/upload/${uploadForm.customerId}`,
                 formData,
                 {
                     headers: {

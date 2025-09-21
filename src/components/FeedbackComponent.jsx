@@ -32,7 +32,7 @@ const FeedbackComponent = () => {
     const fetchRecentDecisions = async () => {
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get('http://localhost:6969/api/files/my-decisions', {
+            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/my-decisions`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
@@ -60,7 +60,7 @@ const FeedbackComponent = () => {
     const fetchPendingDecisions = async () => {
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get('http://localhost:6969/api/files/pending-decisions', {
+            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/pending-decisions`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
@@ -77,7 +77,7 @@ const FeedbackComponent = () => {
         try {
             const token = localStorage.getItem('token')
             const response = await axios.get(
-                `http://localhost:6969/api/files/download-report/${decision.customer_id}`,
+                `${import.meta.env.VITE_API}/api/files/download-report/${decision.customer_id}`,
                 {
                     headers: { Authorization: `Bearer ${token}` },
                     responseType: 'blob'
@@ -123,7 +123,7 @@ const FeedbackComponent = () => {
             
             // Submit feedback through decision endpoint
             const response = await axios.post(
-                `http://localhost:6969/api/files/decision/${feedbackForm.customerId}`,
+                `${import.meta.env.VITE_API}/api/files/decision/${feedbackForm.customerId}`,
                 {
                     mlResultId: feedbackForm.mlResultId,
                     decision: 'FEEDBACK_PROVIDED',

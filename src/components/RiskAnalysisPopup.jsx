@@ -19,7 +19,7 @@ const RiskAnalysisPopup = ({ isOpen, onClose, customerData }) => {
         setLoading(true)
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get(`http://localhost:6969/api/files/ml-results/${customerData.customer_id}`, {
+            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/ml-results/${customerData.customer_id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
@@ -65,7 +65,7 @@ const RiskAnalysisPopup = ({ isOpen, onClose, customerData }) => {
             }
 
             // Send to Express backend
-            const response = await axios.post('http://localhost:6969/api/files/send-analysis-to-express', 
+            const response = await axios.post(`${import.meta.env.VITE_API}/api/files/send-analysis-to-express`, 
                 analysisData,
                 { headers: { Authorization: `Bearer ${token}` } }
             )
