@@ -56,7 +56,6 @@ const RiskAnalysisPopup = ({ isOpen, onClose, customerData }) => {
             // Prepare comprehensive analysis data
             const analysisData = {
                 customer_id: customerData.customer_id,
-                person_name: customerData.person_name,
                 overall_risk_score: mlResults.ml_results[0]?.overall_risk_score || 0,
                 risk_category: getRiskLabel(mlResults.ml_results[0]?.overall_risk_score || 0),
                 individual_files: mlResults.ml_results[0]?.individual_results || [],
@@ -97,7 +96,7 @@ const RiskAnalysisPopup = ({ isOpen, onClose, customerData }) => {
                 <div className="flex items-center justify-between p-6 border-b border-gray-200">
                     <div>
                         <h2 className="text-xl font-bold text-gray-900">
-                            Risk Analysis Details - {customerData?.person_name}
+                            Risk Analysis Details - Customer {customerData?.customer_id}
                         </h2>
                         <p className="text-sm text-gray-600">Customer ID: {customerData?.customer_id}</p>
                     </div>
@@ -305,7 +304,6 @@ const RiskAnalysisPopup = ({ isOpen, onClose, customerData }) => {
                                     <div className="bg-gray-50 p-4 rounded border">
                                         <div className="grid grid-cols-2 gap-4 text-sm">
                                             <div><strong>Risk Score:</strong> {selectedFileDetails.Risk_Score}/100</div>
-                                            <div><strong>Risk Level:</strong> {selectedFileDetails.Risk_Level}</div>
                                             <div><strong>Status:</strong> {selectedFileDetails.Status}</div>
                                             <div><strong>Card Validity:</strong> {selectedFileDetails.Card_Validity}</div>
                                         </div>

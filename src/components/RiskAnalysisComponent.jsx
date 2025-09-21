@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Shield, TrendingUp, AlertTriangle, CheckCircle, Clock, Eye, FileText, User, Phone, X } from 'lucide-react'
+import { Shield, TrendingUp, AlertTriangle, CheckCircle, Clock, Eye, FileText, User, Phone, X, Download } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
 
@@ -47,6 +47,7 @@ const RiskAnalysisComponent = ({ uploadData }) => {
     })
     const [recentUploads, setRecentUploads] = useState([])
     const [fetchingUploads, setFetchingUploads] = useState(false)
+    const [downloadingPDF, setDownloadingPDF] = useState(null)
 
     useEffect(() => {
         fetchPendingDecisions()
@@ -575,6 +576,37 @@ const RiskAnalysisComponent = ({ uploadData }) => {
         )
     }
 
+    const downloadPDFReport = async (item) => {
+        setDownloadingPDF(item.customer_id)
+        try {
+            const token = localStorage.getItem('token')
+            const response = await axios.get(
+                `http://localhost:6969/api/files/download-report/${item.customer_id}`,
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                    responseType: 'blob'
+                }
+            )
+
+            // Create blob link to download
+            const url = window.URL.createObjectURL(new Blob([response.data]))
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', `Risk_Report_${item.customer_id}_${new Date().toISOString().split('T')[0]}.pdf`)
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            window.URL.revokeObjectURL(url)
+
+            toast.success('PDF report downloaded successfully')
+        } catch (error) {
+            console.error('Error downloading PDF report:', error)
+            toast.error('Failed to download PDF report')
+        } finally {
+            setDownloadingPDF(null)
+        }
+    }
+
     return (
         <div className="space-y-6">
             <div className="text-center mb-8">
@@ -717,10 +749,9 @@ const RiskAnalysisComponent = ({ uploadData }) => {
                                 <div className="flex items-center space-x-3">
                                     <User size={20} className="text-gray-500" />
                                     <div>
-                                        <h4 className="font-medium text-gray-900">{result.person_name}</h4>
+                                        <h4 className="font-medium text-gray-900">Customer ID: {result.customer_id}</h4>
                                         <p className="text-sm text-gray-500">
-                                            <Phone size={14} className="inline mr-1" />
-                                            {result.mobile_number}
+                                            Processed: {new Date(result.processed_at).toLocaleDateString()}
                                         </p>
                                     </div>
                                 </div>
@@ -782,6 +813,117 @@ const RiskAnalysisComponent = ({ uploadData }) => {
                                     </div>
                                 </div>
                             )}
+
+                            {/* Risk Assessment Rules */}
+                            <div className="mb-4">
+                                <h5 className="font-medium text-gray-900 mb-3">Risk Assessment Rules:</h5>
+                                <div className="space-y-2">
+                                    {/* R01 - Document Expiry */}
+                                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <div className="flex items-center space-x-3">
+                                            <span className="text-xs font-mono bg-blue-100 text-blue-800 px-2 py-1 rounded">R01</span>
+                                            <span className="text-sm text-gray-700">Document expiry date &lt; today</span>
+                                        </div>
+                                        <span className={`px-2 py-1 text-xs font-medium rounded ${
+                                            result.rule_violations?.includes('R01') ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                                        }`}>
+                                            {result.rule_violations?.includes('R01') ? 'VIOLATED' : 'PASSED'}
+                                        </span>
+                                    </div>
+
+                                    {/* R02 - Restricted Countries */}
+                                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <div className="flex items-center space-x-3">
+                                            <span className="text-xs font-mono bg-blue-100 text-blue-800 px-2 py-1 rounded">R02</span>
+                                            <span className="text-sm text-gray-700">Country code ∈ {'{IR, KP, SY, RU}'}</span>
+                                        </div>
+                                        <span className={`px-2 py-1 text-xs font-medium rounded ${
+                                            result.rule_violations?.includes('R02') ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                                        }`}>
+                                            {result.rule_violations?.includes('R02') ? 'VIOLATED' : 'PASSED'}
+                                        </span>
+                                    </div>
+
+                                    {/* R03 - Image Quality */}
+                                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <div className="flex items-center space-x-3">
+                                            <span className="text-xs font-mono bg-blue-100 text-blue-800 px-2 py-1 rounded">R03</span>
+                                            <span className="text-sm text-gray-700">Blur score &gt; 0.75 OR contrast score &lt; 0.30</span>
+                                        </div>
+                                        <span className={`px-2 py-1 text-xs font-medium rounded ${
+                                            result.rule_violations?.includes('R03') ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                                        }`}>
+                                            {result.rule_violations?.includes('R03') ? 'VIOLATED' : 'PASSED'}
+                                        </span>
+                                    </div>
+
+                                    {/* R04 - Name Matching */}
+                                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <div className="flex items-center space-x-3">
+                                            <span className="text-xs font-mono bg-blue-100 text-blue-800 px-2 py-1 rounded">R04</span>
+                                            <span className="text-sm text-gray-700">Name match score &lt; 0.60</span>
+                                        </div>
+                                        <span className={`px-2 py-1 text-xs font-medium rounded ${
+                                            result.rule_violations?.includes('R04') ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                                        }`}>
+                                            {result.rule_violations?.includes('R04') ? 'VIOLATED' : 'PASSED'}
+                                        </span>
+                                    </div>
+
+                                    {/* R05 - Watchlist Matching */}
+                                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <div className="flex items-center space-x-3">
+                                            <span className="text-xs font-mono bg-blue-100 text-blue-800 px-2 py-1 rounded">R05</span>
+                                            <span className="text-sm text-gray-700">Watchlist match score &gt; 0.5</span>
+                                        </div>
+                                        <span className={`px-2 py-1 text-xs font-medium rounded ${
+                                            result.rule_violations?.includes('R05') ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                                        }`}>
+                                            {result.rule_violations?.includes('R05') ? 'VIOLATED' : 'PASSED'}
+                                        </span>
+                                    </div>
+
+                                    {/* R06 - Tamper Detection */}
+                                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <div className="flex items-center space-x-3">
+                                            <span className="text-xs font-mono bg-blue-100 text-blue-800 px-2 py-1 rounded">R06</span>
+                                            <span className="text-sm text-gray-700">Tamper detection flag = TRUE</span>
+                                        </div>
+                                        <span className={`px-2 py-1 text-xs font-medium rounded ${
+                                            result.rule_violations?.includes('R06') ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                                        }`}>
+                                            {result.rule_violations?.includes('R06') ? 'VIOLATED' : 'PASSED'}
+                                        </span>
+                                    </div>
+
+                                    {/* R07 - Escalation Rules */}
+                                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <div className="flex items-center space-x-3">
+                                            <span className="text-xs font-mono bg-blue-100 text-blue-800 px-2 py-1 rounded">R07</span>
+                                            <span className="text-sm text-gray-700">Any rule marked as "escalate"</span>
+                                        </div>
+                                        <span className={`px-2 py-1 text-xs font-medium rounded ${
+                                            result.rule_violations?.includes('R07') ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                                        }`}>
+                                            {result.rule_violations?.includes('R07') ? 'VIOLATED' : 'PASSED'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Rules Summary */}
+                                <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="font-medium text-blue-900">
+                                            Rules Status: {(result.rule_violations?.length || 0)} violations detected
+                                        </span>
+                                        <span className={`px-2 py-1 text-xs font-medium rounded ${
+                                            (result.rule_violations?.length || 0) > 0 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                                        }`}>
+                                            {(result.rule_violations?.length || 0) > 0 ? 'ATTENTION REQUIRED' : 'ALL RULES PASSED'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
 
                             {/* Processing Summary */}
                             {result.processing_summary && (
@@ -862,8 +1004,8 @@ const RiskAnalysisComponent = ({ uploadData }) => {
                                     <tr key={index}>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div>
-                                                <div className="text-sm font-medium text-gray-900">{item.person_name}</div>
-                                                <div className="text-sm text-gray-500">ID: {item.customer_id}</div>
+                                                <div className="text-sm font-medium text-gray-900">Customer ID: {item.customer_id}</div>
+                                                <div className="text-sm text-gray-500">Processed: {new Date(item.processed_at).toLocaleDateString()}</div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
@@ -878,13 +1020,37 @@ const RiskAnalysisComponent = ({ uploadData }) => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                             {status.hasFeedback ? (
-                                                <button
-                                                    className="inline-flex items-center px-3 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full cursor-default"
-                                                    disabled
-                                                >
-                                                    <CheckCircle size={14} className="mr-1" />
-                                                    Feedback Done
-                                                </button>
+                                                <div className="flex items-center space-x-2">
+                                                    <button
+                                                        className="inline-flex items-center px-3 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full cursor-default"
+                                                        disabled
+                                                    >
+                                                        <CheckCircle size={14} className="mr-1" />
+                                                        Feedback Done
+                                                    </button>
+                                                    <button
+                                                        onClick={() => downloadPDFReport(item)}
+                                                        disabled={downloadingPDF === item.customer_id}
+                                                        className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                                                            downloadingPDF === item.customer_id
+                                                                ? 'text-gray-500 bg-gray-100 cursor-not-allowed'
+                                                                : 'text-blue-700 bg-blue-100 hover:bg-blue-200'
+                                                        }`}
+                                                        title={downloadingPDF === item.customer_id ? "Generating PDF..." : "Download PDF Report"}
+                                                    >
+                                                        {downloadingPDF === item.customer_id ? (
+                                                            <>
+                                                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-500 mr-1"></div>
+                                                                Generating...
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Download size={12} className="mr-1" />
+                                                                PDF
+                                                            </>
+                                                        )}
+                                                    </button>
+                                                </div>
                                             ) : (
                                                 <button
                                                     onClick={() => openFeedbackPopup(item)}
@@ -978,7 +1144,7 @@ const RiskAnalysisComponent = ({ uploadData }) => {
                             <div>
                                 <h2 className="text-xl font-semibold text-gray-900">Risk Analysis & Feedback</h2>
                                 <p className="text-sm text-gray-600 mt-1">
-                                    Customer: {currentCustomerData.person_name} (ID: {currentCustomerData.customer_id})
+                                    Customer ID: {currentCustomerData.customer_id}
                                 </p>
                             </div>
                             <button
@@ -1021,7 +1187,7 @@ const RiskAnalysisComponent = ({ uploadData }) => {
                                                                 </span>
                                                             </div>
                                                             <div className="text-sm text-gray-600">
-                                                                Status: {fileResult.status} | Risk Level: {fileResult.risk_level}
+                                                                Status: {fileResult.status}
                                                             </div>
                                                             {fileResult.risk_details && fileResult.risk_details.length > 0 && (
                                                                 <div className="mt-2">

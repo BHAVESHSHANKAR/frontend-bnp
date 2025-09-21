@@ -6,8 +6,6 @@ import axios from 'axios'
 const UploadComponent = ({ onAnalysisComplete }) => {
     const [uploadForm, setUploadForm] = useState({
         customerId: '',
-        personName: '',
-        mobileNumber: '',
         files: []
     })
     const [uploading, setUploading] = useState(false)
@@ -15,7 +13,7 @@ const UploadComponent = ({ onAnalysisComplete }) => {
     const [bankName] = useState('BNP') // Bank name - can be made configurable later
     const [customerCounter, setCustomerCounter] = useState(1)
 
-    // Generate customer ID when name and mobile are entered
+    // Generate customer ID automatically on component load
     const generateCustomerId = async () => {
         try {
             const token = localStorage.getItem('token')
@@ -41,15 +39,12 @@ const UploadComponent = ({ onAnalysisComplete }) => {
         }
     }
 
-    // Check if name and mobile are filled to enable file selection
-    const isBasicInfoComplete = uploadForm.personName.trim() && uploadForm.mobileNumber.trim()
-
-    // Auto-generate customer ID when name and mobile are entered
+    // Auto-generate customer ID on component load
     useEffect(() => {
-        if (isBasicInfoComplete && !uploadForm.customerId) {
+        if (!uploadForm.customerId) {
             generateCustomerId()
         }
-    }, [isBasicInfoComplete])
+    }, [])
 
     const handleFileUpload = (e) => {
         const files = Array.from(e.target.files)
@@ -83,8 +78,8 @@ const UploadComponent = ({ onAnalysisComplete }) => {
     const handleUploadSubmit = async (e) => {
         e.preventDefault()
         
-        if (!uploadForm.personName || !uploadForm.mobileNumber || uploadForm.files.length === 0) {
-            toast.error('Please fill person name, mobile number and select files')
+        if (uploadForm.files.length === 0) {
+            toast.error('Please select files to upload')
             return
         }
 
@@ -99,8 +94,7 @@ const UploadComponent = ({ onAnalysisComplete }) => {
             const token = localStorage.getItem('token')
             const formData = new FormData()
             
-            formData.append('personName', uploadForm.personName)
-            formData.append('mobileNumber', uploadForm.mobileNumber)
+            // Only customer ID and files are needed
             
             uploadForm.files.forEach(file => {
                 formData.append('files', file)
@@ -124,14 +118,15 @@ const UploadComponent = ({ onAnalysisComplete }) => {
                 if (onAnalysisComplete) {
                     onAnalysisComplete({
                         customerId: uploadForm.customerId,
-                        personName: uploadForm.personName,
                         uploadResults: response.data.data
                     })
                 }
                 
                 // Reset form and increment counter for next customer
-                setUploadForm({ customerId: '', personName: '', mobileNumber: '', files: [] })
+                setUploadForm({ customerId: '', files: [] })
                 setCustomerCounter(prev => prev + 1)
+                // Generate new customer ID for next upload
+                setTimeout(() => generateCustomerId(), 100)
             } else {
                 toast.error(response.data.message || 'Upload failed')
             }
@@ -163,8 +158,8 @@ const UploadComponent = ({ onAnalysisComplete }) => {
                 {/* Customer Information */}
                 <div className="bg-white rounded-lg shadow p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
+                    <div className="grid grid-cols-1 gap-4">
+                        <div className="max-w-md">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Customer ID * (Auto-generated)
                             </label>
@@ -173,39 +168,11 @@ const UploadComponent = ({ onAnalysisComplete }) => {
                                 value={uploadForm.customerId}
                                 readOnly
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 cursor-not-allowed"
-                                placeholder={isBasicInfoComplete ? "Generating..." : "Fill name and mobile first"}
+                                placeholder={uploadForm.customerId ? uploadForm.customerId : "Generating..."}
                             />
                             <p className="text-xs text-gray-500 mt-1">
                                 Format: {bankName}1, {bankName}2, etc.
                             </p>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Person Name *
-                            </label>
-                            <input
-                                type="text"
-                                value={uploadForm.personName}
-                                onChange={(e) => setUploadForm(prev => ({ ...prev, personName: e.target.value }))}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                placeholder="Enter person name"
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Mobile Number *
-                            </label>
-                            <input
-                                type="tel"
-                                value={uploadForm.mobileNumber}
-                                onChange={(e) => setUploadForm(prev => ({ ...prev, mobileNumber: e.target.value }))}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                                placeholder="Enter mobile number"
-                                required
-                            />
                         </div>
                     </div>
                 </div>
@@ -214,29 +181,17 @@ const UploadComponent = ({ onAnalysisComplete }) => {
                 <div className="bg-white rounded-lg shadow p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Document Upload</h3>
                     
-                    {!isBasicInfoComplete && (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                            <div className="flex items-center space-x-2">
-                                <AlertCircle size={20} className="text-yellow-600" />
-                                <p className="text-sm text-yellow-800 font-medium">
-                                    Please fill in Person Name and Mobile Number first to enable file selection
-                                </p>
-                            </div>
-                        </div>
-                    )}
                     
                     {/* Drag and Drop Area */}
                     <div
                         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors duration-200 ${
-                            !isBasicInfoComplete 
-                                ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-50'
-                                : dragActive 
-                                    ? 'border-green-500 bg-green-50' 
-                                    : 'border-gray-300 hover:border-green-400'
+                            dragActive 
+                                ? 'border-green-500 bg-green-50' 
+                                : 'border-gray-300 hover:border-green-400'
                         }`}
-                        onDrop={isBasicInfoComplete ? handleDrop : undefined}
-                        onDragOver={isBasicInfoComplete ? handleDragOver : undefined}
-                        onDragLeave={isBasicInfoComplete ? handleDragLeave : undefined}
+                        onDrop={handleDrop}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
                     >
                         <Upload size={48} className="mx-auto text-gray-400 mb-4" />
                         <p className="text-lg font-medium text-gray-900 mb-2">
@@ -252,18 +207,13 @@ const UploadComponent = ({ onAnalysisComplete }) => {
                             className="hidden"
                             id="file-upload"
                             accept="*/*"
-                            disabled={!isBasicInfoComplete}
                         />
                         <label
-                            htmlFor={isBasicInfoComplete ? "file-upload" : undefined}
-                            className={`inline-flex items-center px-4 py-2 rounded-lg transition-colors duration-200 ${
-                                isBasicInfoComplete 
-                                    ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
-                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                            }`}
+                            htmlFor="file-upload"
+                            className="inline-flex items-center px-4 py-2 rounded-lg transition-colors duration-200 bg-green-600 text-white hover:bg-green-700 cursor-pointer"
                         >
                             <Plus size={20} className="mr-2" />
-                            {isBasicInfoComplete ? 'Select Files' : 'Fill Info First'}
+                            Select Files
                         </label>
                     </div>
 
@@ -331,6 +281,96 @@ const UploadComponent = ({ onAnalysisComplete }) => {
                             <li>• Files will be processed by AI for risk assessment</li>
                             <li>• Ensure customer information is accurate</li>
                         </ul>
+                    </div>
+                </div>
+            </div>
+
+            {/* Risk Assessment Rules Reference */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                <div className="mb-4">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">Risk Assessment Rules</h4>
+                    <p className="text-sm text-gray-600">The following rules will be automatically evaluated during document processing:</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Left Column */}
+                    <div className="space-y-3">
+                        {/* R01 */}
+                        <div className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-gray-200">
+                            <span className="text-xs font-mono bg-blue-100 text-blue-800 px-2 py-1 rounded flex-shrink-0 mt-0.5">R01</span>
+                            <div>
+                                <h5 className="text-sm font-medium text-gray-900">Document Expiry Check</h5>
+                                <p className="text-xs text-gray-600 mt-1">Document expiry date &lt; today</p>
+                            </div>
+                        </div>
+
+                        {/* R02 */}
+                        <div className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-gray-200">
+                            <span className="text-xs font-mono bg-blue-100 text-blue-800 px-2 py-1 rounded flex-shrink-0 mt-0.5">R02</span>
+                            <div>
+                                <h5 className="text-sm font-medium text-gray-900">Restricted Countries</h5>
+                                <p className="text-xs text-gray-600 mt-1">Country code ∈ {'{IR, KP, SY, RU}'}</p>
+                            </div>
+                        </div>
+
+                        {/* R03 */}
+                        <div className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-gray-200">
+                            <span className="text-xs font-mono bg-blue-100 text-blue-800 px-2 py-1 rounded flex-shrink-0 mt-0.5">R03</span>
+                            <div>
+                                <h5 className="text-sm font-medium text-gray-900">Image Quality Check</h5>
+                                <p className="text-xs text-gray-600 mt-1">Blur score &gt; 0.75 OR contrast score &lt; 0.30</p>
+                            </div>
+                        </div>
+
+                        {/* R04 */}
+                        <div className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-gray-200">
+                            <span className="text-xs font-mono bg-blue-100 text-blue-800 px-2 py-1 rounded flex-shrink-0 mt-0.5">R04</span>
+                            <div>
+                                <h5 className="text-sm font-medium text-gray-900">Name Matching</h5>
+                                <p className="text-xs text-gray-600 mt-1">Name match score &lt; 0.60</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column */}
+                    <div className="space-y-3">
+                        {/* R05 */}
+                        <div className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-gray-200">
+                            <span className="text-xs font-mono bg-blue-100 text-blue-800 px-2 py-1 rounded flex-shrink-0 mt-0.5">R05</span>
+                            <div>
+                                <h5 className="text-sm font-medium text-gray-900">Watchlist Screening</h5>
+                                <p className="text-xs text-gray-600 mt-1">Watchlist match score &gt; 0.5</p>
+                            </div>
+                        </div>
+
+                        {/* R06 */}
+                        <div className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-gray-200">
+                            <span className="text-xs font-mono bg-blue-100 text-blue-800 px-2 py-1 rounded flex-shrink-0 mt-0.5">R06</span>
+                            <div>
+                                <h5 className="text-sm font-medium text-gray-900">Tamper Detection</h5>
+                                <p className="text-xs text-gray-600 mt-1">Tamper detection flag = TRUE</p>
+                            </div>
+                        </div>
+
+                        {/* R07 */}
+                        <div className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-gray-200">
+                            <span className="text-xs font-mono bg-blue-100 text-blue-800 px-2 py-1 rounded flex-shrink-0 mt-0.5">R07</span>
+                            <div>
+                                <h5 className="text-sm font-medium text-gray-900">Escalation Rules</h5>
+                                <p className="text-xs text-gray-600 mt-1">Any rule marked as "escalate"</p>
+                            </div>
+                        </div>
+
+                        {/* Info Box */}
+                        <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                            <div className="flex items-center space-x-2">
+                                <CheckCircle size={16} className="text-green-600" />
+                                <p className="text-xs font-medium text-green-800">Automated Assessment</p>
+                            </div>
+                            <p className="text-xs text-green-700 mt-1">
+                                All rules are evaluated automatically during document processing
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>

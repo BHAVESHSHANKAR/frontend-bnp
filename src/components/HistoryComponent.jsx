@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { CheckCircle, AlertTriangle, Clock, User, Calendar, MessageSquare, TrendingUp } from 'lucide-react'
+import { CheckCircle, AlertTriangle, Clock, User, Calendar, MessageSquare, TrendingUp, Download } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
 
@@ -16,6 +16,7 @@ const HistoryComponent = () => {
     const [loading, setLoading] = useState(true)
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage] = useState(4)
+    const [downloadingPDF, setDownloadingPDF] = useState(null)
 
     useEffect(() => {
         fetchCompletedDecisions()
@@ -113,6 +114,37 @@ const HistoryComponent = () => {
     const goToNextPage = () => {
         if (currentPage < getTotalPages()) {
             setCurrentPage(currentPage + 1)
+        }
+    }
+
+    const downloadPDFReport = async (decision) => {
+        setDownloadingPDF(decision.customer_id)
+        try {
+            const token = localStorage.getItem('token')
+            const response = await axios.get(
+                `http://localhost:6969/api/files/download-report/${decision.customer_id}`,
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                    responseType: 'blob'
+                }
+            )
+
+            // Create blob link to download
+            const url = window.URL.createObjectURL(new Blob([response.data]))
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', `Risk_Report_${decision.customer_id}_${new Date().toISOString().split('T')[0]}.pdf`)
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            window.URL.revokeObjectURL(url)
+
+            toast.success('PDF report downloaded successfully')
+        } catch (error) {
+            console.error('Error downloading PDF report:', error)
+            toast.error('Failed to download PDF report')
+        } finally {
+            setDownloadingPDF(null)
         }
     }
 
@@ -284,6 +316,28 @@ const HistoryComponent = () => {
                                             <Calendar size={14} className="mr-1" />
                                             {new Date(decision.decision_timestamp).toLocaleDateString()}
                                         </div>
+                                        <button
+                                            onClick={() => downloadPDFReport(decision)}
+                                            disabled={downloadingPDF === decision.customer_id}
+                                            className={`flex items-center space-x-1 px-3 py-1 text-xs rounded-full transition-colors ${
+                                                downloadingPDF === decision.customer_id
+                                                    ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                                                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                            }`}
+                                            title={downloadingPDF === decision.customer_id ? "Generating PDF..." : "Download PDF Report"}
+                                        >
+                                            {downloadingPDF === decision.customer_id ? (
+                                                <>
+                                                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-500"></div>
+                                                    <span>Generating...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Download size={12} />
+                                                    <span>PDF</span>
+                                                </>
+                                            )}
+                                        </button>
                                     </div>
                                 </div>
                                 

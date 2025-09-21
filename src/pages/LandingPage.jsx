@@ -300,7 +300,7 @@ const LandingPage = () => {
                                     <div className={`text-center transition-all duration-700 delay-400 ${
                                         statsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
                                     }`}>
-                                        <div className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2">&lt;5s</div>
+                                        <div className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2">&lt;20s</div>
                                         <div className="text-green-100 text-sm sm:text-base">Processing Time</div>
                                     </div>
                                 </div>
