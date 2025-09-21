@@ -133,7 +133,31 @@ const UploadComponent = ({ onAnalysisComplete }) => {
 
         } catch (error) {
             console.error('Upload error:', error)
-            toast.error(error.response?.data?.message || 'Upload failed')
+            console.error('Error details:', {
+                message: error.message,
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data,
+                config: {
+                    url: error.config?.url,
+                    method: error.config?.method
+                }
+            })
+            
+            let errorMessage = 'Upload failed'
+            if (error.response?.data?.message) {
+                errorMessage = error.response.data.message
+            } else if (error.response?.status === 404) {
+                errorMessage = 'Upload endpoint not found. Please check backend configuration.'
+            } else if (error.response?.status === 401) {
+                errorMessage = 'Authentication failed. Please login again.'
+            } else if (error.response?.status === 500) {
+                errorMessage = 'Server error. Please try again later.'
+            } else if (error.message) {
+                errorMessage = error.message
+            }
+            
+            toast.error(errorMessage)
         } finally {
             setUploading(false)
         }

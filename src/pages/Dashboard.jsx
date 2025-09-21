@@ -18,14 +18,16 @@ import { getAdmin, logout as authLogout, isValidSession } from '../utils/auth'
 const Dashboard = () => {
     const navigate = useNavigate()
     const [admin, setAdmin] = useState(null)
-    const [activeSection, setActiveSection] = useState('upload')
+    const [activeTab, setActiveTab] = useState('upload')
     const [loading, setLoading] = useState(true)
     const [dashboardData, setDashboardData] = useState({
         pendingDecisions: 0
     })
     const [showProfileDropdown, setShowProfileDropdown] = useState(false)
+    const [showMobileMenu, setShowMobileMenu] = useState(false)
     const [uploadData, setUploadData] = useState(null)
     const profileRef = useRef(null)
+    const mobileMenuRef = useRef(null)
 
     useEffect(() => {
         // Check if user session is valid
@@ -50,11 +52,14 @@ const Dashboard = () => {
         }
     }, [navigate])
 
-    // Handle clicking outside profile dropdown
+    // Handle clicking outside dropdowns
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (profileRef.current && !profileRef.current.contains(event.target)) {
                 setShowProfileDropdown(false)
+            }
+            if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
+                setShowMobileMenu(false)
             }
         }
 
@@ -129,12 +134,69 @@ const Dashboard = () => {
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Floating Pill Navbar */}
-            <nav className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-4xl px-4">
-                <div className="bg-white/90 backdrop-blur-md rounded-full shadow-lg border border-gray-200/60 px-4 sm:px-8 py-4 w-full max-w-2xl mx-auto">
+            <nav className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-6xl px-4">
+                <div className="bg-white/90 backdrop-blur-md rounded-full shadow-lg border border-gray-200/60 px-6 sm:px-10 py-4 w-full max-w-5xl mx-auto">
                     <div className="flex items-center justify-between">
                         {/* Logo */}
                         <div className="flex items-center">
                             <h1 className="text-lg sm:text-xl font-bold text-gray-900">Risk Analyzer</h1>
+                        </div>
+
+                        {/* Navigation Links */}
+                        <div className="hidden md:flex items-center space-x-8">
+                            <button 
+                                onClick={() => setActiveTab('upload')}
+                                className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-200 ${
+                                    activeTab === 'upload' 
+                                        ? 'bg-green-100 text-green-700 shadow-sm' 
+                                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                }`}
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                </svg>
+                                <span className="text-sm font-medium">Document Upload</span>
+                            </button>
+                            
+                            <button 
+                                onClick={() => setActiveTab('analysis')}
+                                className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-200 ${
+                                    activeTab === 'analysis' 
+                                        ? 'bg-green-100 text-green-700 shadow-sm' 
+                                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                }`}
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                                <span className="text-sm font-medium">Risk Analysis</span>
+                            </button>
+                            
+                            <button 
+                                onClick={() => setActiveTab('history')}
+                                className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-200 ${
+                                    activeTab === 'history' 
+                                        ? 'bg-green-100 text-green-700 shadow-sm' 
+                                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                }`}
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span className="text-sm font-medium">History</span>
+                            </button>
+                        </div>
+
+                        {/* Mobile Navigation Menu */}
+                        <div className="md:hidden">
+                            <button
+                                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                                className="flex items-center space-x-2 px-3 py-2 rounded-full hover:bg-gray-100 transition-all duration-200"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                                </svg>
+                            </button>
                         </div>
 
                         {/* Profile Dropdown */}
@@ -183,75 +245,80 @@ const Dashboard = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* Mobile Navigation Menu */}
+                {showMobileMenu && (
+                    <div 
+                        ref={mobileMenuRef}
+                        className="md:hidden absolute top-full left-4 right-4 mt-2 bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-gray-200/60 py-2 z-40"
+                    >
+                        <button 
+                            onClick={() => {
+                                setActiveTab('upload')
+                                setShowMobileMenu(false)
+                            }}
+                            className={`flex items-center w-full px-6 py-3 text-sm transition-all duration-200 ${
+                                activeTab === 'upload' 
+                                    ? 'bg-green-100 text-green-700' 
+                                    : 'text-gray-600 hover:bg-gray-100'
+                            }`}
+                        >
+                            <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                            </svg>
+                            Document Upload
+                        </button>
+                        
+                        <button 
+                            onClick={() => {
+                                setActiveTab('analysis')
+                                setShowMobileMenu(false)
+                            }}
+                            className={`flex items-center w-full px-6 py-3 text-sm transition-all duration-200 ${
+                                activeTab === 'analysis' 
+                                    ? 'bg-green-100 text-green-700' 
+                                    : 'text-gray-600 hover:bg-gray-100'
+                            }`}
+                        >
+                            <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            Risk Analysis
+                        </button>
+                        
+                        <button 
+                            onClick={() => {
+                                setActiveTab('history')
+                                setShowMobileMenu(false)
+                            }}
+                            className={`flex items-center w-full px-6 py-3 text-sm transition-all duration-200 ${
+                                activeTab === 'history' 
+                                    ? 'bg-green-100 text-green-700' 
+                                    : 'text-gray-600 hover:bg-gray-100'
+                            }`}
+                        >
+                            <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            History
+                        </button>
+                    </div>
+                )}
             </nav>
 
             {/* Main Content */}
             <div className="pt-32 pb-8">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    {/* Horizontal Navigation */}
-                    <div className="flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-4 mb-8">
-                        <button
-                            onClick={() => setActiveSection('upload')}
-                            className={`w-full sm:w-auto flex items-center justify-center px-4 sm:px-6 py-3 rounded-lg transition-all duration-200 text-sm sm:text-base ${
-                                activeSection === 'upload'
-                                    ? 'bg-green-600 text-white shadow-md'
-                                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-green-50 hover:text-green-600 hover:border-green-200'
-                            }`}
-                        >
-                            <Upload size={18} className="mr-2" />
-                            <span className="hidden sm:inline">Upload Documents</span>
-                            <span className="sm:hidden">Upload</span>
-                        </button>
-
-                        <button
-                            onClick={() => setActiveSection('risk-analysis')}
-                            className={`w-full sm:w-auto flex items-center justify-center px-4 sm:px-6 py-3 rounded-lg transition-all duration-200 relative text-sm sm:text-base ${
-                                activeSection === 'risk-analysis'
-                                    ? 'bg-green-600 text-white shadow-md'
-                                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-green-50 hover:text-green-600 hover:border-green-200'
-                            }`}
-                        >
-                            <Shield size={18} className="mr-2" />
-                            <span className="hidden sm:inline">Risk Analysis</span>
-                            <span className="sm:hidden">Risk</span>
-                            {dashboardData.pendingDecisions > 0 && (
-                                <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1">
-                                    {dashboardData.pendingDecisions}
-                                </span>
-                            )}
-                        </button>
-
-                        <button
-                            onClick={() => setActiveSection('history')}
-                            className={`w-full sm:w-auto flex items-center justify-center px-4 sm:px-6 py-3 rounded-lg transition-all duration-200 text-sm sm:text-base ${
-                                activeSection === 'history'
-                                    ? 'bg-green-600 text-white shadow-md'
-                                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-green-50 hover:text-green-600 hover:border-green-200'
-                            }`}
-                        >
-                            <MessageSquare size={18} className="mr-2" />
-                            <span className="hidden sm:inline">History</span>
-                            <span className="sm:hidden">History</span>
-                        </button>
-                    </div>
-
-                    {/* Main Content Area */}
-                    <div>
-                        {/* Upload Section */}
-                        {activeSection === 'upload' && (
-                            <UploadComponent onAnalysisComplete={handleAnalysisComplete} />
-                        )}
-
-                        {/* Risk Analysis Section */}
-                        {activeSection === 'risk-analysis' && (
-                            <RiskAnalysisComponent uploadData={uploadData} />
-                        )}
-
-                        {/* History Section */}
-                        {activeSection === 'history' && (
-                            <HistoryComponent />
-                        )}
-                    </div>
+                    {/* Content based on active tab */}
+                    {activeTab === 'upload' && (
+                        <UploadComponent onAnalysisComplete={handleAnalysisComplete} />
+                    )}
+                    {activeTab === 'analysis' && (
+                        <RiskAnalysisComponent uploadData={uploadData} />
+                    )}
+                    {activeTab === 'history' && (
+                        <HistoryComponent />
+                    )}
                 </div>
             </div>
 
