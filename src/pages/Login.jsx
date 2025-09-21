@@ -1,11 +1,13 @@
 import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
+import { setToken, setAdmin } from '../utils/auth'
 
 const Login = () => {
     const navigate = useNavigate()
+    const location = useLocation()
     const [formData, setFormData] = useState({
         username: '',
         password: ''
@@ -13,6 +15,9 @@ const Login = () => {
     const [loading, setLoading] = useState(false)
     const [errors, setErrors] = useState({})
     const [showPassword, setShowPassword] = useState(false)
+    
+    // Get the redirect path from location state
+    const from = location.state?.from?.pathname || '/dashboard'
 
     const handleChange = (e) => {
         const { name, value } = e.target
@@ -61,18 +66,29 @@ const Login = () => {
             })
 
             if (response.data.success) {
-                // Store token and user data
-                localStorage.setItem('token', response.data.data.token)
-                localStorage.setItem('admin', JSON.stringify(response.data.data.admin))
+                // Store token and user data using auth utilities
+                setToken(response.data.data.token)
+                setAdmin(response.data.data.admin)
                 
                 toast.success(`Welcome back, ${response.data.data.admin.full_name}!`)
                 
+                // Redirect to the intended page or dashboard
                 setTimeout(() => {
-                    navigate('/dashboard') // You can create a dashboard page later
+                    navigate(from, { replace: true })
                 }, 1500)
             }
         } catch (error) {
-            const errorMessage = error.response?.data?.message || 'Login failed. Please try again.'
+            console.error('Login error:', error)
+            let errorMessage = 'Login failed. Please try again.'
+            
+            if (error.response?.status === 401) {
+                errorMessage = 'Invalid username or password'
+            } else if (error.response?.data?.message) {
+                errorMessage = error.response.data.message
+            } else if (error.message) {
+                errorMessage = error.message
+            }
+            
             toast.error(errorMessage)
         } finally {
             setLoading(false)

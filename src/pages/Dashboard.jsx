@@ -13,6 +13,7 @@ import axios from 'axios'
 import UploadComponent from '../components/UploadComponent'
 import RiskAnalysisComponent from '../components/RiskAnalysisComponent'
 import HistoryComponent from '../components/HistoryComponent'
+import { getAdmin, logout as authLogout, isValidSession } from '../utils/auth'
 
 const Dashboard = () => {
     const navigate = useNavigate()
@@ -27,20 +28,24 @@ const Dashboard = () => {
     const profileRef = useRef(null)
 
     useEffect(() => {
-        // Check if user is logged in
-        const token = localStorage.getItem('token')
-        const adminData = localStorage.getItem('admin')
-        
-        if (!token || !adminData) {
+        // Check if user session is valid
+        if (!isValidSession()) {
+            console.log('Invalid session detected in Dashboard')
             navigate('/login')
             return
         }
 
         try {
-            setAdmin(JSON.parse(adminData))
-            fetchDashboardData()
+            const adminData = getAdmin()
+            if (adminData) {
+                setAdmin(adminData)
+                fetchDashboardData()
+            } else {
+                console.log('No admin data found')
+                navigate('/login')
+            }
         } catch (error) {
-            console.error('Error parsing admin data:', error)
+            console.error('Error getting admin data:', error)
             navigate('/login')
         }
     }, [navigate])
@@ -61,11 +66,8 @@ const Dashboard = () => {
 
     const fetchDashboardData = async () => {
         try {
-            const token = localStorage.getItem('token')
-            const headers = { Authorization: `Bearer ${token}` }
-
             // Fetch pending decisions count for badge
-            const pendingResponse = await axios.get(`${import.meta.env.VITE_API}/api/files/pending-decisions`, { headers })
+            const pendingResponse = await axios.get(`${import.meta.env.VITE_API}/api/files/pending-decisions`)
             if (pendingResponse.data.success) {
                 setDashboardData({
                     pendingDecisions: pendingResponse.data.data.pending_decisions.length
@@ -74,17 +76,40 @@ const Dashboard = () => {
 
         } catch (error) {
             console.error('Error fetching dashboard data:', error)
+            
+            // Check if it's an authentication error
+            if (error.response?.status === 401) {
+                console.log('Authentication failed while fetching dashboard data')
+                toast.error('Session expired. Please login again.')
+                authLogout()
+                return
+            }
+            
             toast.error('Failed to load dashboard data')
         } finally {
             setLoading(false)
         }
     }
 
-    const handleLogout = () => {
-        localStorage.removeItem('token')
-        localStorage.removeItem('admin')
-        toast.success('Logged out successfully')
-        navigate('/')
+    const handleLogout = async () => {
+        try {
+            // Optional: Call backend logout endpoint
+            const token = localStorage.getItem('token')
+            if (token) {
+                try {
+                    await axios.post(`${import.meta.env.VITE_API}/api/admin/logout`)
+                } catch (error) {
+                    // Ignore logout endpoint errors
+                    console.log('Backend logout failed, proceeding with local logout')
+                }
+            }
+        } catch (error) {
+            console.error('Logout error:', error)
+        } finally {
+            // Always perform local logout
+            authLogout()
+            toast.success('Logged out successfully')
+        }
     }
 
     const handleAnalysisComplete = (data) => {

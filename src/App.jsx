@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import { useEffect } from 'react'
 import LandingPage from './pages/LandingPage'
 import About from './pages/About'
 import Services from './pages/Services'
@@ -8,19 +9,56 @@ import Contact from './pages/Contact'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
+import ProtectedRoute from './components/ProtectedRoute'
+import AuthGuard from './components/AuthGuard'
+import { setupAxiosInterceptors } from './utils/auth'
 
 function App() {
+  // Setup axios interceptors for automatic token handling
+  useEffect(() => {
+    setupAxiosInterceptors()
+  }, [])
+
   return (
     <Router>
       <div className="min-h-screen">
         <Routes>
+          {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/about" element={<About />} />
           <Route path="/services" element={<Services />} />
           <Route path="/contact" element={<Contact />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          
+          {/* Auth Routes - Redirect to dashboard if already logged in */}
+          <Route 
+            path="/login" 
+            element={
+              <AuthGuard>
+                <Login />
+              </AuthGuard>
+            } 
+          />
+          <Route 
+            path="/signup" 
+            element={
+              <AuthGuard>
+                <Signup />
+              </AuthGuard>
+            } 
+          />
+          
+          {/* Protected Routes - Require authentication */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Catch all route - redirect to home */}
+          <Route path="*" element={<LandingPage />} />
         </Routes>
         <ToastContainer
           position="top-right"

@@ -62,21 +62,21 @@ const RiskAnalysisComponent = ({ uploadData }) => {
         }
     }, [uploadData])
 
-    // Refresh data every 30 seconds to avoid overwhelming server
+    // Refresh data every 60 seconds to reduce server load
     useEffect(() => {
         const interval = setInterval(() => {
             // Only refresh if not currently fetching to prevent overlapping requests
-            if (!fetchingUploads) {
+            if (!fetchingUploads && !loadingFeedback && !loadingDecision) {
                 console.log('🔄 Auto-refreshing risk data...')
                 fetchRecentUploads()
                 fetchPendingDecisions()
             } else {
-                console.log('⏳ Skipping refresh - already fetching data')
+                console.log('⏳ Skipping refresh - operations in progress')
             }
-        }, 30000) // 30 seconds
+        }, 60000) // 60 seconds - reduced frequency
 
         return () => clearInterval(interval)
-    }, [fetchingUploads])
+    }, [fetchingUploads, loadingFeedback, loadingDecision])
 
     const fetchRecentUploads = async () => {
         // Prevent multiple simultaneous calls
@@ -89,71 +89,64 @@ const RiskAnalysisComponent = ({ uploadData }) => {
         try {
             const token = localStorage.getItem('token')
             
-            // Try to get recent uploads from my-uploads endpoint
-            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/my-uploads`, {
+            // Get risk statistics directly from backend in a single optimized call
+            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/risk-statistics`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
             if (response.data.success) {
-                const uploads = response.data.data.files || []
-                setRecentUploads(uploads)
-                
-                // Calculate risk statistics from uploads with ML results
-                const stats = { low: 0, medium: 0, high: 0, total: 0, actualScores: [] }
-                
-                // Get ML results for each customer and calculate risk distribution
-                const processedCustomers = new Set()
-                
-                for (const upload of uploads) {
-                    const customerId = upload.customer_id
+                const stats = response.data.data.statistics
+                console.log('📊 Risk Statistics from backend:', stats)
+                setRiskStats({
+                    low: stats.low_risk_count || 0,
+                    medium: stats.medium_risk_count || 0,
+                    high: stats.high_risk_count || 0,
+                    total: stats.total_customers || 0,
+                    actualScores: stats.risk_scores || []
+                })
+            } else {
+                // Fallback to pending decisions for risk stats
+                console.log('Risk statistics endpoint failed, using pending decisions')
+                await fetchPendingDecisionsForStats()
+            }
+        } catch (error) {
+            console.error('Error fetching risk statistics:', error)
+            // Fallback to pending decisions if risk-statistics fails
+            console.log('Falling back to pending decisions for risk stats')
+            await fetchPendingDecisionsForStats()
+        } finally {
+            setFetchingUploads(false)
+        }
+    }
+
+    const fetchPendingDecisionsForStats = async () => {
+        try {
+            const token = localStorage.getItem('token')
+            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/pending-decisions`, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+
+            if (response.data.success) {
+                const decisions = response.data.data.pending_decisions
+                const stats = decisions.reduce((acc, item) => {
+                    const score = item.overall_risk_score || 0
                     
-                    // Avoid counting the same customer multiple times
-                    if (!processedCustomers.has(customerId)) {
-                        processedCustomers.add(customerId)
-                        
-                        try {
-                            // Fetch ML results for this customer
-                            const mlResponse = await axios.get(`${import.meta.env.VITE_API}/api/files/ml-results/${customerId}`, {
-                                headers: { Authorization: `Bearer ${token}` }
-                            })
-                            
-                            if (mlResponse.data.success && mlResponse.data.data.ml_results.length > 0) {
-                                const mlResult = mlResponse.data.data.ml_results[0]
-                                // Use the extracted overall_risk_score from the database query
-                                const riskScore = mlResult.overall_risk_score || 0
-                                
-                                console.log(`Customer ${customerId}: Risk Score = ${riskScore} (Status: ${mlResult.overall_status}, Category: ${mlResult.risk_category})`)
-                                
-                                // Store actual risk score for accurate average calculation
-                                stats.actualScores.push(riskScore)
-                                
-                                // Categorize based on ML backend logic (corrected thresholds)
-                                if (riskScore <= 39) {
-                                    stats.low++
-                                } else if (riskScore <= 69) {
-                                    stats.medium++
-                                } else {
-                                    stats.high++
-                                }
-                                stats.total++
-                            }
-                        } catch (mlError) {
-                            console.log(`No ML results found for customer ${customerId}`)
-                        }
-                    }
-                }
+                    // Store actual risk score for accurate average calculation
+                    acc.actualScores.push(score)
+                    
+                    // Use proper ML backend risk categorization
+                    if (score <= 39) acc.low++
+                    else if (score <= 69) acc.medium++
+                    else acc.high++
+                    acc.total++
+                    return acc
+                }, { low: 0, medium: 0, high: 0, total: 0, actualScores: [] })
                 
-                console.log('📊 Updated Risk Stats:', stats)
-                console.log('📊 Processed customers:', Array.from(processedCustomers))
-                console.log('📊 Total uploads found:', uploads.length)
+                console.log('📊 Fallback Risk Stats from Pending Decisions:', stats)
                 setRiskStats(stats)
             }
         } catch (error) {
-            console.error('Error fetching recent uploads:', error)
-            // Fallback to pending decisions if my-uploads fails
-            console.log('Falling back to pending decisions for risk stats')
-        } finally {
-            setFetchingUploads(false)
+            console.error('Error fetching pending decisions for stats:', error)
         }
     }
 
@@ -250,6 +243,13 @@ const RiskAnalysisComponent = ({ uploadData }) => {
     }
 
     const openFeedbackPopup = async (customerData) => {
+        // Check if customer already has feedback
+        const status = decisionStatuses[customerData.customer_id]
+        if (status && status.hasFeedback) {
+            toast.info('This customer already has feedback provided')
+            return
+        }
+
         setLoadingFeedback(customerData.customer_id)
         try {
             const token = localStorage.getItem('token')
@@ -258,18 +258,29 @@ const RiskAnalysisComponent = ({ uploadData }) => {
             })
 
             if (response.data.success) {
+                // Double-check if customer has feedback in the ML results
+                const mlResult = response.data.data.ml_results[0]
+                if (mlResult && mlResult.decision && mlResult.feedback) {
+                    toast.info('This customer already has feedback provided')
+                    // Update decision status
+                    setDecisionStatuses(prev => ({
+                        ...prev,
+                        [customerData.customer_id]: {
+                            hasFeedback: true,
+                            decision: mlResult.decision,
+                            feedback: mlResult.feedback
+                        }
+                    }))
+                    return
+                }
+
                 const customerDataWithResults = {
                     ...customerData,
                     customer_id: customerData.customer_id, // Ensure customer_id is explicitly set
                     mlResults: response.data.data
                 }
                 
-                console.log('📋 Setting current customer data:', {
-                    original_customerData: customerData,
-                    final_customerData: customerDataWithResults,
-                    has_customer_id: !!customerDataWithResults.customer_id,
-                    ml_results_count: response.data.data.ml_results?.length || 0
-                })
+                console.log('📋 Opening feedback popup for customer:', customerData.customer_id)
                 
                 setCurrentCustomerData(customerDataWithResults)
                 setShowFeedbackPopup(true)
@@ -297,6 +308,13 @@ const RiskAnalysisComponent = ({ uploadData }) => {
         setCurrentCustomerData(null)
     }
 
+    const forceCloseFeedbackPopup = () => {
+        console.log('📋 Force closing feedback popup')
+        setLoadingDecision(null)
+        setShowFeedbackPopup(false)
+        setCurrentCustomerData(null)
+    }
+
     const fetchMLResults = async (customerId) => {
         setLoading(true)
         try {
@@ -320,7 +338,14 @@ const RiskAnalysisComponent = ({ uploadData }) => {
     }
 
     const handleDecisionWithFeedback = async (mlResultId, decision) => {
+        // Prevent multiple simultaneous submissions
+        if (loadingDecision) {
+            toast.warning('Please wait for the current decision to complete')
+            return
+        }
+
         setLoadingDecision(`${mlResultId}-${decision}`) // Set loading for specific button
+        
         try {
             const feedbackElement = document.getElementById(`feedback-${mlResultId}`)
             const feedback = feedbackElement ? feedbackElement.value.trim() : ''
@@ -328,8 +353,15 @@ const RiskAnalysisComponent = ({ uploadData }) => {
             // Validate feedback is provided
             if (!feedback) {
                 toast.error('Feedback is required for all decisions')
+                setLoadingDecision(null) // Clear loading state on validation error
                 return
             }
+
+            // Show processing toast
+            toast.info(`Processing ${decision.toLowerCase()} decision...`, {
+                autoClose: 2000,
+                toastId: `processing-${mlResultId}-${decision}`
+            })
 
             // Get customer ID from current customer data with multiple fallback methods
             let customerId = currentCustomerData?.customer_id
@@ -362,6 +394,7 @@ const RiskAnalysisComponent = ({ uploadData }) => {
                     pendingDecisions: pendingDecisions.slice(0, 2), // Log first 2 for debugging
                     mlResultId
                 })
+                setLoadingDecision(null) // Clear loading state on error
                 return
             }
 
@@ -392,6 +425,7 @@ const RiskAnalysisComponent = ({ uploadData }) => {
             )
 
             if (response.data.success) {
+                console.log('✅ Decision submission successful, closing popup...')
                 toast.success(`Decision "${decision}" recorded successfully with feedback`)
                 
                 // Clear feedback textarea
@@ -399,12 +433,37 @@ const RiskAnalysisComponent = ({ uploadData }) => {
                     feedbackElement.value = ''
                 }
                 
-                // Close popup and refresh data
-                closeFeedbackPopup()
-                fetchPendingDecisions() // Refresh data
-                if (selectedCustomer) {
-                    fetchMLResults(selectedCustomer) // Refresh ML results
-                }
+                // Update decision status immediately to prevent popup from showing again
+                setDecisionStatuses(prev => ({
+                    ...prev,
+                    [customerId]: {
+                        hasFeedback: true,
+                        decision: decision,
+                        feedback: feedback
+                    }
+                }))
+                
+                // Remove customer from pending decisions list immediately
+                setPendingDecisions(prev => prev.filter(item => item.customer_id !== customerId))
+                
+                // Clear loading state and close popup immediately
+                setLoadingDecision(null)
+                setShowFeedbackPopup(false)
+                setCurrentCustomerData(null)
+                
+                console.log('📋 Feedback popup closed, customer removed from pending list')
+                
+                // Show success message and refresh page after a short delay
+                setTimeout(() => {
+                    toast.success('Decision completed successfully! Refreshing page...', {
+                        autoClose: 2000
+                    })
+                    
+                    // Refresh the entire page to ensure clean state
+                    setTimeout(() => {
+                        window.location.reload()
+                    }, 2500) // Refresh after 2.5 seconds to allow user to see the success message
+                }, 500) // Small delay to ensure UI updates are visible
             } else {
                 toast.error(response.data.message || 'Failed to record decision')
             }
@@ -450,15 +509,25 @@ const RiskAnalysisComponent = ({ uploadData }) => {
         return 'CRITICAL'
     }
 
+    // Helper function to get filtered decisions (without feedback)
+    const getFilteredDecisions = () => {
+        return pendingDecisions.filter(decision => {
+            const status = decisionStatuses[decision.customer_id]
+            return !status || !status.hasFeedback
+        })
+    }
+
     // Pagination functions
     const getPaginatedDecisions = () => {
+        const filteredDecisions = getFilteredDecisions()
         const startIndex = (currentPage - 1) * itemsPerPage
         const endIndex = startIndex + itemsPerPage
-        return pendingDecisions.slice(startIndex, endIndex)
+        return filteredDecisions.slice(startIndex, endIndex)
     }
 
     const getTotalPages = () => {
-        return Math.ceil(pendingDecisions.length / itemsPerPage)
+        const filteredDecisions = getFilteredDecisions()
+        return Math.ceil(filteredDecisions.length / itemsPerPage)
     }
 
     const goToPage = (page) => {
@@ -939,35 +1008,104 @@ const RiskAnalysisComponent = ({ uploadData }) => {
 
                             {/* Decision Actions with Feedback */}
                             <div className="pt-4 border-t">
-                                <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Add Feedback <span className="text-red-500">*</span>
-                                        <span className="text-xs text-gray-500 block">Required for Accept/Reject decisions</span>
-                                    </label>
-                                    <textarea
-                                        id={`feedback-${result.id}`}
-                                        rows={3}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                        placeholder="Provide detailed feedback about your decision (required)..."
-                                        required
-                                    />
-                                </div>
-                                <div className="flex space-x-3">
-                                    <button
-                                        onClick={() => handleDecisionWithFeedback(result.id, 'APPROVED')}
-                                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                                    >
-                                        <CheckCircle size={16} className="mr-2" />
-                                        Accept
-                                    </button>
-                                    <button
-                                        onClick={() => handleDecisionWithFeedback(result.id, 'REJECTED')}
-                                        className="flex items-center px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-                                    >
-                                        <AlertTriangle size={16} className="mr-2" />
-                                        Reject
-                                    </button>
-                                </div>
+                                {(() => {
+                                    // Check if customer already has feedback
+                                    const status = decisionStatuses[result.customer_id]
+                                    const hasDecision = (status && status.hasFeedback) || (result.decision && result.feedback)
+                                    
+                                    if (hasDecision) {
+                                        return (
+                                            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                                <div className="flex items-center space-x-3">
+                                                    <CheckCircle size={20} className="text-green-600" />
+                                                    <div>
+                                                        <h4 className="text-sm font-medium text-green-900">Decision Completed</h4>
+                                                        <p className="text-sm text-green-700 mt-1">
+                                                            Decision: <span className="font-medium">{status?.decision || result.decision}</span>
+                                                        </p>
+                                                        {(status?.feedback || result.feedback) && (
+                                                            <p className="text-sm text-green-700 mt-1">
+                                                                Feedback: "{status?.feedback || result.feedback}"
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )
+                                    }
+                                    
+                                    return (
+                                        <>
+                                            <div className="mb-4">
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                    Add Feedback <span className="text-red-500">*</span>
+                                                    <span className="text-xs text-gray-500 block">Required for Accept/Reject decisions</span>
+                                                </label>
+                                                <textarea
+                                                    id={`feedback-${result.id}`}
+                                                    rows={3}
+                                                    disabled={loadingDecision && loadingDecision.startsWith(`${result.id}-`)}
+                                                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                                                        loadingDecision && loadingDecision.startsWith(`${result.id}-`)
+                                                            ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed'
+                                                            : 'border-gray-300'
+                                                    }`}
+                                                    placeholder="Provide detailed feedback about your decision (required)..."
+                                                    required
+                                                />
+                                                {loadingDecision && loadingDecision.startsWith(`${result.id}-`) && (
+                                                    <p className="mt-1 text-xs text-gray-500 italic">
+                                                        Processing decision... Please wait.
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <div className="flex space-x-3">
+                                                <button
+                                                    onClick={() => handleDecisionWithFeedback(result.id, 'APPROVED')}
+                                                    disabled={loadingDecision === `${result.id}-APPROVED`}
+                                                    className={`flex items-center px-4 py-2 rounded transition-colors ${
+                                                        loadingDecision === `${result.id}-APPROVED`
+                                                            ? 'bg-gray-400 cursor-not-allowed'
+                                                            : 'bg-green-600 hover:bg-green-700'
+                                                    } text-white`}
+                                                >
+                                                    {loadingDecision === `${result.id}-APPROVED` ? (
+                                                        <>
+                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                                            Processing...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <CheckCircle size={16} className="mr-2" />
+                                                            Accept
+                                                        </>
+                                                    )}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDecisionWithFeedback(result.id, 'REJECTED')}
+                                                    disabled={loadingDecision === `${result.id}-REJECTED`}
+                                                    className={`flex items-center px-4 py-2 rounded transition-colors ${
+                                                        loadingDecision === `${result.id}-REJECTED`
+                                                            ? 'bg-gray-400 cursor-not-allowed'
+                                                            : 'bg-red-600 hover:bg-red-700'
+                                                    } text-white`}
+                                                >
+                                                    {loadingDecision === `${result.id}-REJECTED` ? (
+                                                        <>
+                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                                            Processing...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <AlertTriangle size={16} className="mr-2" />
+                                                            Reject
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        </>
+                                    )
+                                })()}
                             </div>
                         </div>
                     ))}
@@ -1083,11 +1221,14 @@ const RiskAnalysisComponent = ({ uploadData }) => {
                 </div>
                 
                 {/* Pagination Controls */}
-                {pendingDecisions.length > itemsPerPage && (
+                {getFilteredDecisions().length > itemsPerPage && (
                     <div className="px-6 py-4 border-t border-gray-200">
                         <div className="flex items-center justify-between">
                             <div className="text-sm text-gray-700">
-                                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, pendingDecisions.length)} of {pendingDecisions.length} results
+                                {(() => {
+                                    const filteredCount = getFilteredDecisions().length
+                                    return `Showing ${((currentPage - 1) * itemsPerPage) + 1} to ${Math.min(currentPage * itemsPerPage, filteredCount)} of ${filteredCount} results`
+                                })()}
                             </div>
                             <div className="flex items-center space-x-2">
                                 <button
@@ -1138,6 +1279,20 @@ const RiskAnalysisComponent = ({ uploadData }) => {
             {/* Feedback Popup Modal */}
             {showFeedbackPopup && currentCustomerData && (
                 <div className="fixed inset-0 bg-white/20 backdrop-blur-lg flex items-center justify-center z-50 p-4">
+                    {/* Loading Overlay */}
+                    {loadingDecision && (
+                        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-10">
+                            <div className="bg-white rounded-lg p-6 shadow-xl border border-gray-200 max-w-sm mx-auto">
+                                <div className="flex items-center space-x-3">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-900">Processing Decision</p>
+                                        <p className="text-xs text-gray-500">Please wait while we save your feedback...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                     <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                         {/* Modal Header */}
                         <div className="flex items-center justify-between p-6 border-b border-white/30">
@@ -1149,7 +1304,13 @@ const RiskAnalysisComponent = ({ uploadData }) => {
                             </div>
                             <button
                                 onClick={closeFeedbackPopup}
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                                disabled={loadingDecision}
+                                className={`transition-colors ${
+                                    loadingDecision 
+                                        ? 'text-gray-300 cursor-not-allowed' 
+                                        : 'text-gray-400 hover:text-gray-600'
+                                }`}
+                                title={loadingDecision ? 'Please wait for the decision to complete' : 'Close'}
                             >
                                 <X size={24} />
                             </button>
@@ -1215,10 +1376,20 @@ const RiskAnalysisComponent = ({ uploadData }) => {
                                                 <textarea
                                                     id={`feedback-${result.id}`}
                                                     rows={4}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                                    disabled={loadingDecision && loadingDecision.startsWith(`${result.id}-`)}
+                                                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                                                        loadingDecision && loadingDecision.startsWith(`${result.id}-`)
+                                                            ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed'
+                                                            : 'border-gray-300'
+                                                    }`}
                                                     placeholder="Provide detailed feedback about your decision (required)..."
                                                     required
                                                 />
+                                                {loadingDecision && loadingDecision.startsWith(`${result.id}-`) && (
+                                                    <p className="mt-1 text-xs text-gray-500 italic">
+                                                        Processing decision... Please wait.
+                                                    </p>
+                                                )}
                                             </div>
                                             <div className="flex space-x-3">
                                                 <button
