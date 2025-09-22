@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Shield, TrendingUp, AlertTriangle, CheckCircle, Clock, Eye, FileText, User, Phone, X, Download } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
+import { getApiUrl } from '../utils/apiConfig'
 
 // Track if rate limit toast is already shown to prevent multiple toasts
 let rateLimitToastShown = false;
@@ -90,7 +91,10 @@ const RiskAnalysisComponent = ({ uploadData }) => {
             const token = localStorage.getItem('token')
             
             // Get risk statistics directly from backend in a single optimized call
-            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/risk-statistics`, {
+            const apiUrl = getApiUrl()
+            console.log('🔗 RiskAnalysis fetchRecentUploads - Using API URL:', apiUrl)
+            
+            const response = await axios.get(`${apiUrl}/api/files/risk-statistics`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
@@ -122,7 +126,10 @@ const RiskAnalysisComponent = ({ uploadData }) => {
     const fetchPendingDecisionsForStats = async () => {
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/pending-decisions`, {
+            const apiUrl = getApiUrl()
+            console.log('🔗 RiskAnalysis fetchPendingDecisionsForStats - Using API URL:', apiUrl)
+            
+            const response = await axios.get(`${apiUrl}/api/files/pending-decisions`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
@@ -153,7 +160,10 @@ const RiskAnalysisComponent = ({ uploadData }) => {
     const fetchPendingDecisions = async () => {
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/pending-decisions`, {
+            const apiUrl = getApiUrl()
+            console.log('🔗 RiskAnalysis fetchPendingDecisions - Using API URL:', apiUrl)
+            
+            const response = await axios.get(`${apiUrl}/api/files/pending-decisions`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
@@ -200,7 +210,8 @@ const RiskAnalysisComponent = ({ uploadData }) => {
             // Check each customer for existing decisions
             for (const decision of decisions) {
                 try {
-                    const response = await axios.get(`${import.meta.env.VITE_API}/api/files/ml-results/${decision.customer_id}`, {
+                    const apiUrl = getApiUrl()
+                    const response = await axios.get(`${apiUrl}/api/files/ml-results/${decision.customer_id}`, {
                         headers: { Authorization: `Bearer ${token}` }
                     })
                     
@@ -253,7 +264,10 @@ const RiskAnalysisComponent = ({ uploadData }) => {
         setLoadingFeedback(customerData.customer_id)
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/ml-results/${customerData.customer_id}`, {
+            const apiUrl = getApiUrl()
+            console.log('🔗 RiskAnalysis handleFeedbackClick - Using API URL:', apiUrl)
+            
+            const response = await axios.get(`${apiUrl}/api/files/ml-results/${customerData.customer_id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
@@ -319,7 +333,10 @@ const RiskAnalysisComponent = ({ uploadData }) => {
         setLoading(true)
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/ml-results/${customerId}`, {
+            const apiUrl = getApiUrl()
+            console.log('🔗 RiskAnalysis fetchMLResults - Using API URL:', apiUrl)
+            
+            const response = await axios.get(`${apiUrl}/api/files/ml-results/${customerId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
@@ -418,8 +435,11 @@ const RiskAnalysisComponent = ({ uploadData }) => {
             
             console.log(`📤 Request payload:`, requestData)
             
+            const apiUrl = getApiUrl()
+            console.log('🔗 RiskAnalysis submitDecision - Using API URL:', apiUrl)
+            
             const response = await axios.post(
-                `${import.meta.env.VITE_API}/api/files/decision/${customerId}`,
+                `${apiUrl}/api/files/decision/${customerId}`,
                 requestData,
                 { headers: { Authorization: `Bearer ${token}` } }
             )
@@ -649,8 +669,11 @@ const RiskAnalysisComponent = ({ uploadData }) => {
         setDownloadingPDF(item.customer_id)
         try {
             const token = localStorage.getItem('token')
+            const apiUrl = getApiUrl()
+            console.log('🔗 RiskAnalysis downloadPDFReport - Using API URL:', apiUrl)
+            
             const response = await axios.get(
-                `${import.meta.env.VITE_API}/api/files/download-report/${item.customer_id}`,
+                `${apiUrl}/api/files/download-report/${item.customer_id}`,
                 {
                     headers: { Authorization: `Bearer ${token}` },
                     responseType: 'blob'
@@ -760,7 +783,10 @@ const RiskAnalysisComponent = ({ uploadData }) => {
                             onClick={async () => {
                                 try {
                                     const token = localStorage.getItem('token')
-                                    const response = await axios.get(`${import.meta.env.VITE_API}/api/files/debug/risk-data`, {
+                                    const apiUrl = getApiUrl()
+                                    console.log('🔗 RiskAnalysis debug - Using API URL:', apiUrl)
+                                    
+                                    const response = await axios.get(`${apiUrl}/api/files/debug/risk-data`, {
                                         headers: { Authorization: `Bearer ${token}` }
                                     })
                                     console.log('🔍 Debug Risk Data:', response.data)

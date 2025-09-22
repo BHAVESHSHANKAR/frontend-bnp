@@ -8,6 +8,7 @@ import {
     isValidSession,
     validateTokenWithBackend 
 } from '../utils/auth'
+import { getApiUrl } from '../utils/apiConfig'
 import { toast } from 'react-toastify'
 
 // Auth Context
@@ -172,7 +173,10 @@ export const AuthProvider = ({ children }) => {
         try {
             dispatch({ type: AUTH_ACTIONS.LOGIN_START })
             
-            const response = await fetch(`${import.meta.env.VITE_API}/api/admin/login`, {
+            const apiUrl = getApiUrl()
+            console.log('🔗 AuthContext Login - Using API URL:', apiUrl)
+            
+            const response = await fetch(`${apiUrl}/api/admin/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -221,7 +225,10 @@ export const AuthProvider = ({ children }) => {
             const token = getToken()
             if (token) {
                 try {
-                    await fetch(`${import.meta.env.VITE_API}/api/admin/logout`, {
+                    const apiUrl = getApiUrl()
+                    console.log('🔗 AuthContext Logout - Using API URL:', apiUrl)
+                    
+                    await fetch(`${apiUrl}/api/admin/logout`, {
                         method: 'POST',
                         headers: {
                             'Authorization': `Bearer ${token}`,

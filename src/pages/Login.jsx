@@ -4,6 +4,7 @@ import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
 import { setToken, setAdmin } from '../utils/auth'
+import { getApiUrl } from '../utils/apiConfig'
 
 const Login = () => {
     const navigate = useNavigate()
@@ -60,7 +61,10 @@ const Login = () => {
         setLoading(true)
 
         try {
-            const response = await axios.post(`${import.meta.env.VITE_API}/api/admin/login`, {
+            const apiUrl = getApiUrl()
+            console.log('🔗 Login - Using API URL:', apiUrl)
+            
+            const response = await axios.post(`${apiUrl}/api/admin/login`, {
                 username: formData.username,
                 password: formData.password
             })

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
+import { getApiUrl } from '../utils/apiConfig'
 
 const Signup = () => {
     const navigate = useNavigate()
@@ -85,7 +86,10 @@ const Signup = () => {
         setLoading(true)
 
         try {
-        const response = await axios.post(`${import.meta.env.VITE_API}/api/admin/signup`, {
+            const apiUrl = getApiUrl()
+            console.log('🔗 Signup - Using API URL:', apiUrl)
+            
+            const response = await axios.post(`${apiUrl}/api/admin/signup`, {
                 username: formData.username,
                 email: formData.email,
                 password: formData.password,

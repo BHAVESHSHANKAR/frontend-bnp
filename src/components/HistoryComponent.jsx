@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { CheckCircle, AlertTriangle, Clock, User, Calendar, MessageSquare, TrendingUp, Download } from 'lucide-react'
+import { History, Calendar, User, FileText, CheckCircle, XCircle, Clock, Download, Search, Filter } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
+import { getApiUrl } from '../utils/apiConfig'
 
 const HistoryComponent = () => {
     const [completedDecisions, setCompletedDecisions] = useState([])
@@ -25,7 +26,10 @@ const HistoryComponent = () => {
     const fetchCompletedDecisions = async () => {
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/completed-decisions`, {
+            const apiUrl = getApiUrl()
+            console.log('🔗 HistoryComponent fetchCompletedDecisions - Using API URL:', apiUrl)
+            
+            const response = await axios.get(`${apiUrl}/api/files/completed-decisions`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
@@ -54,7 +58,8 @@ const HistoryComponent = () => {
                 // Endpoint might not exist, try fallback
                 console.log('Trying fallback endpoint...')
                 try {
-                    const fallbackResponse = await axios.get(`${import.meta.env.VITE_API}/api/files/my-decisions`, {
+                    const apiUrl = getApiUrl()
+                    const fallbackResponse = await axios.get(`${apiUrl}/api/files/my-decisions`, {
                         headers: { Authorization: `Bearer ${token}` }
                     })
                     
@@ -121,8 +126,11 @@ const HistoryComponent = () => {
         setDownloadingPDF(decision.customer_id)
         try {
             const token = localStorage.getItem('token')
+            const apiUrl = getApiUrl()
+            console.log('🔗 HistoryComponent downloadReport - Using API URL:', apiUrl)
+            
             const response = await axios.get(
-                `${import.meta.env.VITE_API}/api/files/download-report/${decision.customer_id}`,
+                `${apiUrl}/api/files/download-report/${decision.customer_id}`,
                 {
                     headers: { Authorization: `Bearer ${token}` },
                     responseType: 'blob'

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getApiUrl } from './apiConfig'
 
 // Token management utilities
 export const getToken = () => {
@@ -121,7 +122,10 @@ export const validateTokenWithBackend = async () => {
         const token = getToken()
         if (!token) return false
         
-        const response = await axios.get(`${import.meta.env.VITE_API}/api/admin/validate-token`, {
+        const apiUrl = getApiUrl()
+        console.log('🔗 Auth validateTokenWithBackend - Using API URL:', apiUrl)
+        
+        const response = await axios.get(`${apiUrl}/api/admin/validate-token`, {
             headers: { Authorization: `Bearer ${token}` }
         })
         

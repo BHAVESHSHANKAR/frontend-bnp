@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { MessageSquare, Send, Star, TrendingUp, CheckCircle, AlertTriangle, Clock, User, Calendar, Download } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
+import { getApiUrl } from '../utils/apiConfig'
 
 const FeedbackComponent = () => {
     const [feedbackForm, setFeedbackForm] = useState({
@@ -32,7 +33,10 @@ const FeedbackComponent = () => {
     const fetchRecentDecisions = async () => {
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/my-decisions`, {
+            const apiUrl = getApiUrl()
+            console.log('🔗 FeedbackComponent fetchRecentDecisions - Using API URL:', apiUrl)
+            
+            const response = await axios.get(`${apiUrl}/api/files/my-decisions`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
@@ -60,7 +64,10 @@ const FeedbackComponent = () => {
     const fetchPendingDecisions = async () => {
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/pending-decisions`, {
+            const apiUrl = getApiUrl()
+            console.log('🔗 FeedbackComponent fetchPendingDecisions - Using API URL:', apiUrl)
+            
+            const response = await axios.get(`${apiUrl}/api/files/pending-decisions`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
@@ -76,8 +83,11 @@ const FeedbackComponent = () => {
         setDownloadingPDF(decision.customer_id)
         try {
             const token = localStorage.getItem('token')
+            const apiUrl = getApiUrl()
+            console.log('🔗 FeedbackComponent downloadReport - Using API URL:', apiUrl)
+            
             const response = await axios.get(
-                `${import.meta.env.VITE_API}/api/files/download-report/${decision.customer_id}`,
+                `${apiUrl}/api/files/download-report/${decision.customer_id}`,
                 {
                     headers: { Authorization: `Bearer ${token}` },
                     responseType: 'blob'
@@ -122,8 +132,11 @@ const FeedbackComponent = () => {
             const token = localStorage.getItem('token')
             
             // Submit feedback through decision endpoint
+            const apiUrl = getApiUrl()
+            console.log('🔗 FeedbackComponent submitFeedback - Using API URL:', apiUrl)
+            
             const response = await axios.post(
-                `${import.meta.env.VITE_API}/api/files/decision/${feedbackForm.customerId}`,
+                `${apiUrl}/api/files/decision/${feedbackForm.customerId}`,
                 {
                     mlResultId: feedbackForm.mlResultId,
                     decision: 'FEEDBACK_PROVIDED',

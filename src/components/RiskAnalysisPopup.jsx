@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { X, FileText, AlertTriangle, CheckCircle, Clock, Eye, Download, Send } from 'lucide-react'
+import { X, AlertTriangle, CheckCircle, Clock, FileText, User, Phone } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
+import { getApiUrl } from '../utils/apiConfig'
 
 const RiskAnalysisPopup = ({ isOpen, onClose, customerData }) => {
     const [mlResults, setMlResults] = useState(null)
@@ -19,7 +20,10 @@ const RiskAnalysisPopup = ({ isOpen, onClose, customerData }) => {
         setLoading(true)
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/ml-results/${customerData.customer_id}`, {
+            const apiUrl = getApiUrl()
+            console.log('🔗 RiskAnalysisPopup fetchDetailedMLResults - Using API URL:', apiUrl)
+            
+            const response = await axios.get(`${apiUrl}/api/files/ml-results/${customerData.customer_id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
@@ -65,7 +69,10 @@ const RiskAnalysisPopup = ({ isOpen, onClose, customerData }) => {
             }
 
             // Send to Express backend
-            const response = await axios.post(`${import.meta.env.VITE_API}/api/files/send-analysis-to-express`, 
+            const apiUrl = getApiUrl()
+            console.log('🔗 RiskAnalysisPopup sendToExpress - Using API URL:', apiUrl)
+            
+            const response = await axios.post(`${apiUrl}/api/files/send-analysis-to-express`, 
                 analysisData,
                 { headers: { Authorization: `Bearer ${token}` } }
             )

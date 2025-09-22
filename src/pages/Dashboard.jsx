@@ -6,14 +6,24 @@ import {
     MessageSquare,
     LogOut,
     User,
-    ChevronDown
+    ChevronDown,
+    BarChart3,
+    History,
+    TrendingUp,
+    AlertTriangle,
+    CheckCircle,
+    Clock,
+    FileText,
+    Users,
+    Activity
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
+import { removeToken, getAdmin, logout as authLogout, isValidSession } from '../utils/auth'
+import { getApiUrl } from '../utils/apiConfig'
 import UploadComponent from '../components/UploadComponent'
 import RiskAnalysisComponent from '../components/RiskAnalysisComponent'
 import HistoryComponent from '../components/HistoryComponent'
-import { getAdmin, logout as authLogout, isValidSession } from '../utils/auth'
 
 const Dashboard = () => {
     const navigate = useNavigate()
@@ -72,7 +82,10 @@ const Dashboard = () => {
     const fetchDashboardData = async () => {
         try {
             // Fetch pending decisions count for badge
-            const pendingResponse = await axios.get(`${import.meta.env.VITE_API}/api/files/pending-decisions`)
+            const apiUrl = getApiUrl()
+            console.log('🔗 Dashboard fetchDashboardData - Using API URL:', apiUrl)
+            
+            const pendingResponse = await axios.get(`${apiUrl}/api/files/pending-decisions`)
             if (pendingResponse.data.success) {
                 setDashboardData({
                     pendingDecisions: pendingResponse.data.data.pending_decisions.length
@@ -102,7 +115,8 @@ const Dashboard = () => {
             const token = localStorage.getItem('token')
             if (token) {
                 try {
-                    await axios.post(`${import.meta.env.VITE_API}/api/admin/logout`)
+                    const apiUrl = getApiUrl()
+                    await axios.post(`${apiUrl}/api/admin/logout`)
                 } catch (error) {
                     // Ignore logout endpoint errors
                     console.log('Backend logout failed, proceeding with local logout')
