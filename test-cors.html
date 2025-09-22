@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>🧪 CORS Test for BNP Backend</h1>
+    <p>Testing CORS configuration for your deployed backend...</p>
+    
+    <div id="results"></div>
+    
+    <button onclick="runTests()">🚀 Run CORS Tests</button>
+    
+    <script>
+        const API_URL = 'https://bnp-backend.vercel.app';
+        const resultsDiv = document.getElementById('results');
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = message;
+            resultsDiv.appendChild(div);
+        }
+        
+        async function testEndpoint(name, url, options = {}) {
+            try {
+                addResult(`📡 Testing ${name}...`, 'info');
+                
+                const response = await fetch(url, {
+                    method: options.method || 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    body: options.body
+                });
+                
+                const data = await response.text();
+                
+                addResult(`✅ ${name}: ${response.status} ${response.statusText}`, 'success');
+                addResult(`📋 Response: ${data.substring(0, 200)}...`, 'info');
+                
+                return { success: true, status: response.status, data };
+            } catch (error) {
+                addResult(`❌ ${name}: ${error.message}`, 'error');
+                addResult(`🔍 Error details: ${JSON.stringify({
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack?.substring(0, 200)
+                })}`, 'error');
+                
+                return { success: false, error: error.message };
+            }
+        }
+        
+        async function runTests() {
+            resultsDiv.innerHTML = '';
+            addResult('🚀 Starting CORS tests...', 'info');
+            
+            // Test basic endpoints
+            await testEndpoint('Health Check', `${API_URL}/`);
+            await testEndpoint('Ping', `${API_URL}/ping`);
+            
+            // Test CORS preflight
+            await testEndpoint('CORS Preflight', `${API_URL}/api/files/next-customer-id`, {
+                method: 'OPTIONS'
+            });
+            
+            // Test authenticated endpoint (should fail with 401, not CORS error)
+            await testEndpoint('Customer ID (No Auth)', `${API_URL}/api/files/next-customer-id?bankName=BNP`);
+            
+            // Test with fake auth header
+            await testEndpoint('Customer ID (Fake Auth)', `${API_URL}/api/files/next-customer-id?bankName=BNP`, {
+                headers: {
+                    'Authorization': 'Bearer fake-token'
+                }
+            });
+            
+            addResult('🎯 Test completed! Check results above.', 'info');
+        }
+        
+        // Auto-run tests on page load
+        window.onload = () => {
+            setTimeout(runTests, 1000);
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        input[type="file"] { margin: 10px 0; }
+        button { margin: 5px; padding: 10px 15px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Upload Debug Test</h1>
+    <p>Testing file upload functionality...</p>
+    
+    <div>
+        <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.png,.txt">
+        <br>
+        <button onclick="testCORS()">🌐 Test CORS</button>
+        <button onclick="testUploadNoAuth()">📤 Test Upload (No Auth)</button>
+        <button onclick="testUploadWithAuth()">🔐 Test Upload (With Auth)</button>
+        <button onclick="testCustomerId()">🆔 Test Customer ID</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <script>
+        const API_URL = 'https://bnp-backend.vercel.app';
+        const resultsDiv = document.getElementById('results');
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `${new Date().toLocaleTimeString()}: ${message}`;
+            resultsDiv.appendChild(div);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+        
+        async function testCORS() {
+            addResult('🌐 Testing CORS...', 'info');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/files/test-cors`);
+                const data = await response.json();
+                
+                addResult(`✅ CORS Test: ${response.status} - ${data.message}`, 'success');
+                addResult(`📋 Response: ${JSON.stringify(data, null, 2)}`, 'info');
+            } catch (error) {
+                addResult(`❌ CORS Test Failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testUploadNoAuth() {
+            const fileInput = document.getElementById('fileInput');
+            const files = fileInput.files;
+            
+            if (files.length === 0) {
+                addResult('⚠️ Please select files first', 'error');
+                return;
+            }
+            
+            addResult(`📤 Testing upload without auth (${files.length} files)...`, 'info');
+            
+            try {
+                const formData = new FormData();
+                for (let file of files) {
+                    formData.append('files', file);
+                    addResult(`📎 Adding file: ${file.name} (${file.size} bytes)`, 'info');
+                }
+                
+                const response = await fetch(`${API_URL}/api/files/test-upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult(`✅ Upload Test: ${response.status} - ${data.message}`, 'success');
+                    addResult(`📋 Files received: ${data.filesReceived}`, 'success');
+                } else {
+                    addResult(`❌ Upload Test Failed: ${response.status} - ${data.message}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Upload Test Error: ${error.message}`, 'error');
+                addResult(`🔍 Error type: ${error.name}`, 'error');
+            }
+        }
+        
+        async function testUploadWithAuth() {
+            const fileInput = document.getElementById('fileInput');
+            const files = fileInput.files;
+            
+            if (files.length === 0) {
+                addResult('⚠️ Please select files first', 'error');
+                return;
+            }
+            
+            addResult(`🔐 Testing upload with fake auth (${files.length} files)...`, 'info');
+            
+            try {
+                const formData = new FormData();
+                for (let file of files) {
+                    formData.append('files', file);
+                }
+                
+                const response = await fetch(`${API_URL}/api/files/upload/BNP123`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer fake-token'
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                addResult(`📊 Auth Upload Test: ${response.status} - ${data.message}`, 
+                    response.status === 401 ? 'info' : response.ok ? 'success' : 'error');
+                
+                if (response.status === 401) {
+                    addResult('✅ Auth working correctly (401 expected)', 'success');
+                }
+            } catch (error) {
+                addResult(`❌ Auth Upload Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testCustomerId() {
+            addResult('🆔 Testing Customer ID generation...', 'info');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/files/next-customer-id?bankName=BNP`, {
+                    headers: {
+                        'Authorization': 'Bearer fake-token'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                addResult(`📊 Customer ID Test: ${response.status} - ${data.message}`, 
+                    response.status === 401 ? 'info' : 'error');
+                
+                if (response.status === 401) {
+                    addResult('✅ Customer ID endpoint exists and requires auth', 'success');
+                }
+            } catch (error) {
+                addResult(`❌ Customer ID Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-run CORS test on page load
+        window.onload = () => {
+            setTimeout(testCORS, 1000);
+        };
+    </script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Upload, Plus, X, FileText, AlertCircle, CheckCircle } from 'lucide-react'
 import { toast } from 'react-toastify'
-import axios from 'axios'
+import axiosInstance from '../utils/axiosConfig'
 import { getApiUrl } from '../utils/apiConfig'
 
 const UploadComponent = ({ onAnalysisComplete }) => {
@@ -21,8 +21,7 @@ const UploadComponent = ({ onAnalysisComplete }) => {
             const apiUrl = getApiUrl()
             console.log('🔗 Using API URL:', apiUrl) // Debug log
             
-            const response = await axios.get(`${apiUrl}/api/files/next-customer-id`, {
-                headers: { Authorization: `Bearer ${token}` },
+            const response = await axiosInstance.get(`${apiUrl}/api/files/next-customer-id`, {
                 params: { bankName }
             })
             
@@ -128,21 +127,17 @@ const UploadComponent = ({ onAnalysisComplete }) => {
             const uploadUrl = `${apiUrl}/api/files/upload/${uploadForm.customerId}`
             console.log('🎯 Upload URL:', uploadUrl)
 
-            const response = await axios.post(
+            const response = await axiosInstance.post(
                 uploadUrl,
                 formData,
                 {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        // Don't set Content-Type manually for multipart/form-data
-                        // Let axios set it automatically with boundary
-                    },
-                    timeout: 120000, // 2 minutes timeout to match backend
-                    maxContentLength: Infinity,
-                    maxBodyLength: Infinity,
                     // Add retry logic for network issues
                     validateStatus: function (status) {
                         return status < 500; // Resolve only if status is less than 500
+                    },
+                    onUploadProgress: (progressEvent) => {
+                        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+                        console.log(`📊 Upload progress: ${percentCompleted}%`)
                     }
                 }
             )

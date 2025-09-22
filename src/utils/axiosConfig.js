@@ -3,7 +3,9 @@ import { getApiUrl } from './apiConfig'
 
 // Create axios instance with default config
 const axiosInstance = axios.create({
-    timeout: 30000, // 30 seconds timeout
+    timeout: 120000, // 2 minutes timeout for file uploads
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -17,13 +19,21 @@ axiosInstance.interceptors.request.use(
             config.baseURL = getApiUrl()
         }
         
-        // Add auth token if available
-        const token = localStorage.getItem('adminToken')
+        // Add auth token if available (use 'token' not 'adminToken')
+        const token = localStorage.getItem('token')
         if (token) {
             config.headers.Authorization = `Bearer ${token}`
         }
         
-        console.log(`🔗 API Request: ${config.method?.toUpperCase()} ${config.baseURL || ''}${config.url}`)
+        // Handle file uploads - don't set Content-Type for FormData
+        if (config.data instanceof FormData) {
+            delete config.headers['Content-Type']
+            config.timeout = 300000 // 5 minutes for file uploads
+            console.log(`📤 File Upload Request: ${config.method?.toUpperCase()} ${config.baseURL || ''}${config.url}`)
+        } else {
+            console.log(`🔗 API Request: ${config.method?.toUpperCase()} ${config.baseURL || ''}${config.url}`)
+        }
+        
         return config
     },
     (error) => {
