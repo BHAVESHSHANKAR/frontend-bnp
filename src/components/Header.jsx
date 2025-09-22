@@ -71,6 +71,20 @@ const Header = () => {
             >
               Contact
             </Link>
+            {/* Debug link - only show in development */}
+            {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
+              <Link 
+                to="/api-test" 
+                className={`font-medium transition-all duration-300 hover:text-red-600 relative after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-red-600 after:transition-all after:duration-300 hover:after:w-full ${
+                  isScrolled 
+                    ? 'text-red-500' 
+                    : 'text-red-600'
+                }`}
+                title="API Debug Tool"
+              >
+                🔧 API Test
+              </Link>
+            )}
           </nav>
 
           {/* CTA Buttons */}
