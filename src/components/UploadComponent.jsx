@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Upload, Plus, X, FileText, AlertCircle, CheckCircle } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
+import { getApiUrl } from '../utils/apiConfig'
 
 const UploadComponent = ({ onAnalysisComplete }) => {
     const [uploadForm, setUploadForm] = useState({
@@ -17,7 +18,10 @@ const UploadComponent = ({ onAnalysisComplete }) => {
     const generateCustomerId = async () => {
         try {
             const token = localStorage.getItem('token')
-            const response = await axios.get(`${import.meta.env.VITE_API}/api/files/next-customer-id`, {
+            const apiUrl = getApiUrl()
+            console.log('🔗 Using API URL:', apiUrl) // Debug log
+            
+            const response = await axios.get(`${apiUrl}/api/files/next-customer-id`, {
                 headers: { Authorization: `Bearer ${token}` },
                 params: { bankName }
             })
@@ -32,10 +36,17 @@ const UploadComponent = ({ onAnalysisComplete }) => {
                 setUploadForm(prev => ({ ...prev, customerId: nextId }))
             }
         } catch (error) {
-            console.error('Error generating customer ID:', error)
+            console.error('❌ Error generating customer ID:', error)
+            console.error('❌ Error details:', {
+                message: error.message,
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data
+            })
             // Fallback to local counter
             const nextId = `${bankName}${customerCounter}`
             setUploadForm(prev => ({ ...prev, customerId: nextId }))
+            toast.warning('Using fallback customer ID generation')
         }
     }
 
@@ -92,22 +103,39 @@ const UploadComponent = ({ onAnalysisComplete }) => {
 
         try {
             const token = localStorage.getItem('token')
+            const apiUrl = getApiUrl()
+            
+            console.log('🚀 Starting upload process...')
+            console.log('🔗 API URL:', apiUrl)
+            console.log('👤 Customer ID:', uploadForm.customerId)
+            console.log('📁 Files count:', uploadForm.files.length)
+            console.log('🔑 Token present:', !!token)
+            
+            if (!token) {
+                toast.error('Authentication token not found. Please login again.')
+                return
+            }
+            
             const formData = new FormData()
             
             // Only customer ID and files are needed
-            
             uploadForm.files.forEach(file => {
                 formData.append('files', file)
+                console.log('📎 Adding file:', file.name, 'Size:', file.size)
             })
 
+            const uploadUrl = `${apiUrl}/api/files/upload/${uploadForm.customerId}`
+            console.log('🎯 Upload URL:', uploadUrl)
+
             const response = await axios.post(
-                `${import.meta.env.VITE_API}/api/files/upload/${uploadForm.customerId}`,
+                uploadUrl,
                 formData,
                 {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'multipart/form-data'
-                    }
+                    },
+                    timeout: 60000 // 60 second timeout for large files
                 }
             )
 
@@ -132,27 +160,32 @@ const UploadComponent = ({ onAnalysisComplete }) => {
             }
 
         } catch (error) {
-            console.error('Upload error:', error)
-            console.error('Error details:', {
+            console.error('❌ Upload error:', error)
+            console.error('❌ Upload error details:', {
                 message: error.message,
                 status: error.response?.status,
                 statusText: error.response?.statusText,
                 data: error.response?.data,
                 config: {
                     url: error.config?.url,
-                    method: error.config?.method
+                    method: error.config?.method,
+                    headers: error.config?.headers
                 }
             })
             
+            // Provide more specific error messages
             let errorMessage = 'Upload failed'
-            if (error.response?.data?.message) {
-                errorMessage = error.response.data.message
-            } else if (error.response?.status === 404) {
-                errorMessage = 'Upload endpoint not found. Please check backend configuration.'
+            
+            if (error.code === 'NETWORK_ERROR' || error.message.includes('Network Error')) {
+                errorMessage = 'Network error - please check your internet connection and try again'
             } else if (error.response?.status === 401) {
-                errorMessage = 'Authentication failed. Please login again.'
+                errorMessage = 'Authentication failed - please login again'
+            } else if (error.response?.status === 413) {
+                errorMessage = 'Files too large - please reduce file size and try again'
             } else if (error.response?.status === 500) {
-                errorMessage = 'Server error. Please try again later.'
+                errorMessage = 'Server error - please try again later'
+            } else if (error.response?.data?.message) {
+                errorMessage = error.response.data.message
             } else if (error.message) {
                 errorMessage = error.message
             }
