@@ -27,8 +27,9 @@ const UploadComponent = ({ onAnalysisComplete }) => {
             })
             
             if (response.data.success) {
-                const nextId = `${bankName}${response.data.data.nextId}`
-                setUploadForm(prev => ({ ...prev, customerId: nextId }))
+                // Use the full customer ID from backend (e.g., "BNP1", "BNP2")
+                const customerId = response.data.data.fullCustomerId || response.data.data.customer_id
+                setUploadForm(prev => ({ ...prev, customerId: customerId }))
                 setCustomerCounter(response.data.data.nextId)
             } else {
                 // Fallback to local counter if API fails
