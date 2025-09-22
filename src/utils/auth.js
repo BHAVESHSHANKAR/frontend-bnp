@@ -94,22 +94,23 @@ export const setupAxiosInterceptors = () => {
                 config.headers.Authorization = `Bearer ${token}`
             }
             
-            // Add CORS headers for deployment
-            config.headers['Access-Control-Allow-Origin'] = '*'
-            config.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-            config.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+            // Don't add CORS headers in client - these should be set by server
+            // Adding them here can cause CORS issues
             
             // Set default timeout if not specified
             if (!config.timeout) {
                 config.timeout = 30000 // 30 seconds default
             }
             
-            console.log('🔧 Axios request config:', {
-                url: config.url,
-                method: config.method,
-                hasAuth: !!config.headers.Authorization,
-                timeout: config.timeout
-            })
+            // Only log in development to avoid console spam in production
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                console.log('🔧 Axios request config:', {
+                    url: config.url,
+                    method: config.method,
+                    hasAuth: !!config.headers.Authorization,
+                    timeout: config.timeout
+                })
+            }
             
             return config
         },
@@ -122,11 +123,14 @@ export const setupAxiosInterceptors = () => {
     // Response interceptor to handle token expiration and errors
     axios.interceptors.response.use(
         (response) => {
-            console.log('✅ Axios response success:', {
-                url: response.config.url,
-                status: response.status,
-                statusText: response.statusText
-            })
+            // Only log in development to avoid console spam in production
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                console.log('✅ Axios response success:', {
+                    url: response.config.url,
+                    status: response.status,
+                    statusText: response.statusText
+                })
+            }
             return response
         },
         (error) => {

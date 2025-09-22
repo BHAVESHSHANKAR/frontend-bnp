@@ -63,10 +63,29 @@ const Login = () => {
         try {
             const apiUrl = getApiUrl()
             console.log('🔗 Login - Using API URL:', apiUrl)
+            console.log('📤 Login request data:', {
+                username: formData.username,
+                passwordLength: formData.password.length
+            })
             
-            const response = await axios.post(`${apiUrl}/api/admin/login`, {
+            // Create a fresh axios instance to avoid interceptor conflicts
+            const loginAxios = axios.create({
+                timeout: 30000,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            
+            const response = await loginAxios.post(`${apiUrl}/api/admin/login`, {
                 username: formData.username,
                 password: formData.password
+            })
+            
+            console.log('✅ Login response received:', {
+                status: response.status,
+                statusText: response.statusText,
+                hasData: !!response.data,
+                success: response.data?.success
             })
 
             if (response.data.success) {
@@ -82,15 +101,40 @@ const Login = () => {
                 }, 1500)
             }
         } catch (error) {
-            console.error('Login error:', error)
+            console.error('❌ Login error:', error)
+            console.error('❌ Login error details:', {
+                message: error.message,
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data,
+                code: error.code,
+                config: {
+                    url: error.config?.url,
+                    method: error.config?.method,
+                    headers: error.config?.headers
+                }
+            })
+            
             let errorMessage = 'Login failed. Please try again.'
             
-            if (error.response?.status === 401) {
+            if (error.code === 'NETWORK_ERROR' || error.message.includes('Network Error')) {
+                errorMessage = 'Network error - please check your internet connection'
+            } else if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+                errorMessage = 'Login timeout - please try again'
+            } else if (error.response?.status === 401) {
                 errorMessage = 'Invalid username or password'
+            } else if (error.response?.status === 403) {
+                errorMessage = 'Access forbidden - account may be disabled'
+            } else if (error.response?.status === 404) {
+                errorMessage = 'Login service not found - please contact support'
+            } else if (error.response?.status === 500) {
+                errorMessage = 'Server error - please try again later'
+            } else if (error.response?.status === 502 || error.response?.status === 503) {
+                errorMessage = 'Service temporarily unavailable - please try again'
             } else if (error.response?.data?.message) {
                 errorMessage = error.response.data.message
             } else if (error.message) {
-                errorMessage = error.message
+                errorMessage = `Login error: ${error.message}`
             }
             
             toast.error(errorMessage)
