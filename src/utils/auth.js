@@ -86,31 +86,70 @@ export const logout = () => {
 
 // Setup axios interceptor for automatic token handling
 export const setupAxiosInterceptors = () => {
-    // Request interceptor to add token to headers
+    // Request interceptor to add token to headers and configure CORS
     axios.interceptors.request.use(
         (config) => {
             const token = getToken()
             if (token && !isTokenExpired(token)) {
                 config.headers.Authorization = `Bearer ${token}`
             }
+            
+            // Add CORS headers for deployment
+            config.headers['Access-Control-Allow-Origin'] = '*'
+            config.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            config.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+            
+            // Set default timeout if not specified
+            if (!config.timeout) {
+                config.timeout = 30000 // 30 seconds default
+            }
+            
+            console.log('🔧 Axios request config:', {
+                url: config.url,
+                method: config.method,
+                hasAuth: !!config.headers.Authorization,
+                timeout: config.timeout
+            })
+            
             return config
         },
         (error) => {
+            console.error('❌ Axios request error:', error)
             return Promise.reject(error)
         }
     )
 
-    // Response interceptor to handle token expiration
+    // Response interceptor to handle token expiration and errors
     axios.interceptors.response.use(
         (response) => {
+            console.log('✅ Axios response success:', {
+                url: response.config.url,
+                status: response.status,
+                statusText: response.statusText
+            })
             return response
         },
         (error) => {
+            console.error('❌ Axios response error:', {
+                url: error.config?.url,
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                message: error.message,
+                code: error.code
+            })
+            
             if (error.response?.status === 401) {
                 // Token is invalid or expired
-                console.log('Authentication failed - redirecting to login')
+                console.log('🔐 Authentication failed - redirecting to login')
                 logout()
+            } else if (error.response?.status === 403) {
+                console.log('🚫 Access forbidden - insufficient permissions')
+            } else if (error.response?.status >= 500) {
+                console.log('🔥 Server error - backend may be down')
+            } else if (error.code === 'NETWORK_ERROR') {
+                console.log('🌐 Network error - check internet connection')
             }
+            
             return Promise.reject(error)
         }
     )

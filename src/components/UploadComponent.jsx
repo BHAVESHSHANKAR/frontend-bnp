@@ -133,30 +133,46 @@ const UploadComponent = ({ onAnalysisComplete }) => {
                 {
                     headers: {
                         'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'multipart/form-data'
+                        // Don't set Content-Type manually for multipart/form-data
+                        // Let axios set it automatically with boundary
                     },
-                    timeout: 60000 // 60 second timeout for large files
+                    timeout: 120000, // 2 minutes timeout to match backend
+                    maxContentLength: Infinity,
+                    maxBodyLength: Infinity,
+                    // Add retry logic for network issues
+                    validateStatus: function (status) {
+                        return status < 500; // Resolve only if status is less than 500
+                    }
                 }
             )
 
-            if (response.data.success) {
-                toast.success('Files uploaded and processed successfully!')
-                
-                // Call the callback to switch to risk analysis with the data
-                if (onAnalysisComplete) {
-                    onAnalysisComplete({
-                        customerId: uploadForm.customerId,
-                        uploadResults: response.data.data
-                    })
+            // Handle different response scenarios
+            if (response.status >= 200 && response.status < 300) {
+                if (response.data.success) {
+                    toast.success('Files uploaded and processed successfully!')
+                    
+                    // Call the callback to switch to risk analysis with the data
+                    if (onAnalysisComplete) {
+                        onAnalysisComplete({
+                            customerId: uploadForm.customerId,
+                            uploadResults: response.data.data
+                        })
+                    }
+                    
+                    // Reset form and increment counter for next customer
+                    setUploadForm({ customerId: '', files: [] })
+                    setCustomerCounter(prev => prev + 1)
+                    // Generate new customer ID for next upload
+                    setTimeout(() => generateCustomerId(), 100)
+                } else {
+                    // Backend returned success=false
+                    console.error('❌ Backend returned error:', response.data)
+                    toast.error(response.data.message || 'Upload processing failed')
                 }
-                
-                // Reset form and increment counter for next customer
-                setUploadForm({ customerId: '', files: [] })
-                setCustomerCounter(prev => prev + 1)
-                // Generate new customer ID for next upload
-                setTimeout(() => generateCustomerId(), 100)
             } else {
-                toast.error(response.data.message || 'Upload failed')
+                // HTTP error status
+                console.error('❌ HTTP Error:', response.status, response.statusText)
+                toast.error(`Server error: ${response.status} ${response.statusText}`)
             }
 
         } catch (error) {
@@ -176,18 +192,42 @@ const UploadComponent = ({ onAnalysisComplete }) => {
             // Provide more specific error messages
             let errorMessage = 'Upload failed'
             
-            if (error.code === 'NETWORK_ERROR' || error.message.includes('Network Error')) {
+            if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+                errorMessage = 'Upload timeout - files may be too large or connection is slow. Please try again.'
+            } else if (error.code === 'NETWORK_ERROR' || error.message.includes('Network Error')) {
                 errorMessage = 'Network error - please check your internet connection and try again'
             } else if (error.response?.status === 401) {
                 errorMessage = 'Authentication failed - please login again'
+                // Clear invalid token
+                localStorage.removeItem('token')
+                localStorage.removeItem('admin')
             } else if (error.response?.status === 413) {
                 errorMessage = 'Files too large - please reduce file size and try again'
+            } else if (error.response?.status === 422) {
+                errorMessage = 'Invalid file format or corrupted files detected'
+            } else if (error.response?.status === 429) {
+                errorMessage = 'Too many requests - please wait a moment and try again'
             } else if (error.response?.status === 500) {
                 errorMessage = 'Server error - please try again later'
+            } else if (error.response?.status === 502 || error.response?.status === 503) {
+                errorMessage = 'Service temporarily unavailable - please try again in a few minutes'
             } else if (error.response?.data?.message) {
                 errorMessage = error.response.data.message
             } else if (error.message) {
-                errorMessage = error.message
+                errorMessage = `Upload error: ${error.message}`
+            }
+            
+            // Log additional debugging info for development
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                console.error('🔍 Debug Info:', {
+                    apiUrl,
+                    uploadUrl,
+                    filesCount: uploadForm.files.length,
+                    totalSize: uploadForm.files.reduce((sum, file) => sum + file.size, 0),
+                    tokenPresent: !!token,
+                    errorCode: error.code,
+                    errorName: error.name
+                })
             }
             
             toast.error(errorMessage)
